@@ -377,7 +377,7 @@
     
     <div id="start-overlay" class="overlay">
       <h2>Trace the Circuit</h2>
-      <p>Touch and drag the cursor from <strong>START</strong> to <strong>GOAL</strong> without touching the circuit walls.</p>
+      <p id="overlay-instructions">Touch and drag from <strong>GABA</strong> to <strong>GABA Receptor</strong> without touching the circuit walls.</p>
       
       <div class="input-group">
         <input type="text" id="player-name" placeholder="Enter Your Name" maxlength="15" />
@@ -393,14 +393,14 @@
     </div>
   </div>
 
-  <!-- LINK-BASED LEADERBOARD -->
+  <!-- LINK & LOCAL STORAGE LEADERBOARD -->
   <div class="leaderboard-card">
     <div class="leaderboard-header">
-      <h3>Link Leaderboard</h3>
+      <h3>Leaderboard</h3>
       <button id="share-link-btn" class="share-btn">Copy Link with Scores</button>
     </div>
     <ul id="leaderboard-list" class="leaderboard-list">
-      <li class="leaderboard-item"><span>No scores in link yet</span></li>
+      <li class="leaderboard-item"><span>No scores available</span></li>
     </ul>
   </div>
 
@@ -421,6 +421,9 @@
     const playerNameInput = document.getElementById('player-name');
     const leaderboardList = document.getElementById('leaderboard-list');
     const shareLinkBtn = document.getElementById('share-link-btn');
+    const overlayInstructions = document.getElementById('overlay-instructions');
+
+    const STORAGE_KEY = 'prolet_leaderboard_scores';
 
     let audioCtx = null;
     let lastBuzzTime = 0;
@@ -479,10 +482,19 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
+    function updateOverlayText() {
+      if (mode === 'pre') {
+        overlayInstructions.innerHTML = 'Touch and drag from <strong>GABA</strong> to <strong>GABA Receptor</strong> without touching the circuit walls.';
+      } else {
+        overlayInstructions.innerHTML = 'Touch and drag from <strong>Phenobarbital</strong> to <strong>GABA Receptor</strong> without touching the circuit walls.';
+      }
+    }
+
     btnPre.addEventListener('click', () => {
       mode = 'pre';
       btnPre.classList.add('active-pre');
       btnPost.classList.remove('active-post');
+      updateOverlayText();
       resetGame();
     });
 
@@ -490,6 +502,7 @@
       mode = 'post';
       btnPost.classList.add('active-post');
       btnPre.classList.remove('active-pre');
+      updateOverlayText();
       resetGame();
     });
 
@@ -511,6 +524,7 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const scaledWp = getScaledWaypoints();
 
+      // Outer boundary path
       ctx.beginPath();
       ctx.moveTo(scaledWp[0].x, scaledWp[0].y);
       for (let i = 1; i < scaledWp.length; i++) ctx.lineTo(scaledWp[i].x, scaledWp[i].y);
@@ -520,6 +534,7 @@
       ctx.strokeStyle = '#2a2d32';
       ctx.stroke();
 
+      // Inner corridor path
       ctx.beginPath();
       ctx.moveTo(scaledWp[0].x, scaledWp[0].y);
       for (let i = 1; i < scaledWp.length; i++) ctx.lineTo(scaledWp[i].x, scaledWp[i].y);
@@ -529,23 +544,27 @@
       ctx.strokeStyle = '#101114';
       ctx.stroke();
 
+      // Start Node (Dynamic Label)
+      const startLabel = mode === 'pre' ? 'GABA' : 'Phenobarbital';
       ctx.beginPath();
       ctx.arc(scaledWp[0].x, scaledWp[0].y, pathWidth / 2 + 3, 0, Math.PI * 2);
       ctx.fillStyle = '#2b62a8';
       ctx.fill();
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 11px sans-serif';
+      ctx.font = 'bold 10px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('START', scaledWp[0].x, scaledWp[0].y);
+      ctx.fillText(startLabel, scaledWp[0].x, scaledWp[0].y);
 
+      // Goal Node (GABA Receptor)
       const endWp = scaledWp[scaledWp.length - 1];
       ctx.beginPath();
       ctx.arc(endWp.x, endWp.y, pathWidth / 2 + 3, 0, Math.PI * 2);
       ctx.fillStyle = '#2ed573';
       ctx.fill();
       ctx.fillStyle = '#000000';
-      ctx.fillText('GOAL', endWp.x, endWp.y);
+      ctx.font = 'bold 9px sans-serif';
+      ctx.fillText('GABA Receptor', endWp.x, endWp.y);
     }
 
     function distToSegment(p, v, w) {
@@ -670,32 +689,60 @@
       startOverlay.classList.remove('hidden');
     }
 
-    // --- LINK URL LEADERBOARD PARSING & UPDATING ---
-    function loadLeaderboardFromURL() {
+    // --- LOCAL STORAGE + URL PARSING FOR PERMANENT SCORES ---
+    function loadLeaderboardFromURLAndStorage() {
+      globalScores = [];
+
+      // Load saved local scores
+      const savedLocal = localStorage.getItem(STORAGE_KEY);
+      if (savedLocal) {
+        try {
+          globalScores = JSON.parse(savedLocal);
+        } catch (e) {
+          globalScores = [];
+        }
+      }
+
+      // Check URL parameters
       const params = new URLSearchParams(window.location.search);
       const scoresParam = params.get('scores');
       
-      globalScores = [];
       if (scoresParam) {
         const entries = scoresParam.split('|');
         entries.forEach(e => {
-          const [name, score, mode] = e.split(':');
-          if (name && score && mode) {
-            globalScores.push({ name: decodeURIComponent(name), score: parseInt(score), mode });
+          const [name, score, m] = e.split(':');
+          if (name && score && m) {
+            const decodedName = decodeURIComponent(name);
+            const numericScore = parseInt(score);
+            
+            const exists = globalScores.some(s => 
+              s.name === decodedName && s.score === numericScore && s.mode === m
+            );
+
+            if (!exists) {
+              globalScores.push({ name: decodedName, score: numericScore, mode: m });
+            }
           }
         });
       }
-      renderLeaderboard();
+
+      updateAndPersistScores();
     }
 
-    function updateURLWithScores() {
+    function updateAndPersistScores() {
       globalScores.sort((a, b) => b.score - a.score);
+      globalScores = globalScores.slice(0, 10);
+
+      // Save to localStorage
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(globalScores));
+
+      // Update URL parameters
       const topFive = globalScores.slice(0, 5);
-      
       const encodedScores = topFive.map(s => `${encodeURIComponent(s.name)}:${s.score}:${s.mode}`).join('|');
       const newUrl = `${window.location.origin}${window.location.pathname}?scores=${encodedScores}`;
       
       window.history.replaceState({ path: newUrl }, '', newUrl);
+
       renderLeaderboard();
     }
 
@@ -703,7 +750,7 @@
       leaderboardList.innerHTML = '';
 
       if (globalScores.length === 0) {
-        leaderboardList.innerHTML = '<li class="leaderboard-item"><span>No scores in link yet</span></li>';
+        leaderboardList.innerHTML = '<li class="leaderboard-item"><span>No scores available</span></li>';
         return;
       }
 
@@ -741,7 +788,7 @@
         
         const playerName = playerNameInput.value.trim() || 'Player';
         globalScores.push({ name: playerName, score: finalScore, mode: mode });
-        updateURLWithScores();
+        updateAndPersistScores();
       } else {
         resultTitle.textContent = 'Circuit Fault!';
         resultTitle.style.color = 'var(--prolet-red)';
@@ -759,7 +806,9 @@
 
     retryBtn.addEventListener('click', resetGame);
 
-    loadLeaderboardFromURL();
+    // Initial setup
+    updateOverlayText();
+    loadLeaderboardFromURLAndStorage();
     loop();
   </script>
 </body>

@@ -46,7 +46,6 @@
       width: 100%;
     }
 
-    /* Container for logo to ensure full visibility of black lettering */
     .brand-logo-wrapper {
       background: rgba(255, 255, 255, 0.08);
       padding: 6px 16px;
@@ -61,7 +60,6 @@
       max-width: 240px;
       object-fit: contain;
       display: block;
-      /* Dropshadow outline makes black text pop on dark background */
       filter: drop-shadow(0px 0px 4px rgba(255, 255, 255, 0.85));
     }
 
@@ -84,7 +82,7 @@
       gap: 12px;
       margin-bottom: 12px;
       width: 100%;
-      max-width: 650px; /* Expanded max-width */
+      max-width: 650px;
     }
 
     .mode-btn {
@@ -119,7 +117,7 @@
       justify-content: space-between;
       align-items: center;
       width: 100%;
-      max-width: 650px; /* Expanded max-width */
+      max-width: 650px;
       background: var(--prolet-card);
       padding: 12px 18px;
       border-radius: 8px;
@@ -148,12 +146,11 @@
       font-weight: bold;
     }
 
-    /* EXPANDED CANVAS CONTAINER */
     #game-container {
       position: relative;
       width: 100%;
-      max-width: 650px; /* Expanded from 480px to 650px */
-      height: 60vh; /* Scaled to take up more screen height */
+      max-width: 650px;
+      height: 60vh;
       min-height: 380px;
       background: var(--prolet-card);
       border-radius: 12px;
@@ -218,7 +215,6 @@
 <body>
 
   <header>
-    <!-- Logo with Contrast Enhancements -->
     <div class="brand-logo-wrapper">
       <img 
         src="logo.png" 
@@ -282,7 +278,12 @@
 
     // Audio Context Setup
     let audioCtx = null;
+    let lastBuzzTime = 0;
     function playBuzzSound() {
+      const now = performance.now();
+      if (now - lastBuzzTime < 100) return; // Rate limit audio buzzes
+      lastBuzzTime = now;
+
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === 'suspended') audioCtx.resume();
       
@@ -314,8 +315,9 @@
     
     let rawPos = { x: 0, y: 0 };
     let simulatedPos = { x: 0, y: 0 };
+    const cursorRadius = 12;
     
-    // Waypoints for Circuit (Normalized 0 to 1)
+    // Waypoints for Circuit
     const waypoints = [
       { x: 0.12, y: 0.15 },
       { x: 0.88, y: 0.15 },
@@ -324,13 +326,13 @@
       { x: 0.12, y: 0.85 },
       { x: 0.88, y: 0.85 }
     ];
-    let pathWidth = 42; // Increased path width for larger canvas
+    let pathWidth = 42;
 
     function resizeCanvas() {
       const rect = canvas.getBoundingClientRect();
       canvas.width = rect.width;
       canvas.height = rect.height;
-      pathWidth = Math.min(canvas.width, canvas.height) * 0.09; // Dynamic scaling
+      pathWidth = Math.min(canvas.width, canvas.height) * 0.09;
     }
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
@@ -355,7 +357,7 @@
       if (mode === 'post') return { x, y };
       
       const time = performance.now() * 0.025;
-      const amplitude = 16.0;
+      const amplitude = 18.0;
       
       const offsetX = (Math.sin(time * 1.3) + Math.cos(time * 2.1)) * amplitude;
       const offsetY = (Math.cos(time * 1.7) + Math.sin(time * 2.4)) * amplitude;
@@ -399,7 +401,7 @@
       ctx.strokeStyle = '#101114';
       ctx.stroke();
 
-      // Start Node (Brand Blue)
+      // Start Node
       ctx.beginPath();
       ctx.arc(scaledWp[0].x, scaledWp[0].y, pathWidth / 2 + 5, 0, Math.PI * 2);
       ctx.fillStyle = '#2b62a8';
@@ -410,7 +412,7 @@
       ctx.textBaseline = 'middle';
       ctx.fillText('START', scaledWp[0].x, scaledWp[0].y);
 
-      // Goal Node (Green Success Accent)
+      // Goal Node
       const endWp = scaledWp[scaledWp.length - 1];
       ctx.beginPath();
       ctx.arc(endWp.x, endWp.y, pathWidth / 2 + 5, 0, Math.PI * 2);
@@ -420,32 +422,43 @@
       ctx.fillText('GOAL', endWp.x, endWp.y);
     }
 
-    function isPointInPath(point) {
-      const scaledWp = getScaledWaypoints();
-      for (let i = 0; i < scaledWp.length - 1; i++) {
-        const p1 = scaledWp[i];
-        const p2 = scaledWp[i + 1];
-        if (distToSegment(point, p1, p2) <= pathWidth / 2) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    function distToSegment(p, v, w) {
+    // Mathematical projection to closest point on segment
+    function getClosestPointOnSegment(p, v, w) {
       const l2 = (v.x - w.x) ** 2 + (v.y - w.y) ** 2;
-      if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
+      if (l2 === 0) return { ...v, dist: Math.hypot(p.x - v.x, p.y - v.y) };
       let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
       t = Math.max(0, Math.min(1, t));
-      return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
+      const proj = {
+        x: v.x + t * (w.x - v.x),
+        y: v.y + t * (w.y - v.y)
+      };
+      proj.dist = Math.hypot(p.x - proj.x, p.y - proj.y);
+      return proj;
     }
 
-    function checkCollision() {
+    // Hard Boundary Barrier Enforcement & Collision Check
+    function enforceBoundariesAndCheckCollision() {
       if (!isPlaying || !isTouching) return;
 
-      const inside = isPointInPath(simulatedPos);
-      if (!inside) {
-        health = Math.max(0, health - 1.5);
+      const scaledWp = getScaledWaypoints();
+      let minProj = null;
+      let minDistance = Infinity;
+
+      // Find nearest segment projection
+      for (let i = 0; i < scaledWp.length - 1; i++) {
+        const proj = getClosestPointOnSegment(simulatedPos, scaledWp[i], scaledWp[i + 1]);
+        if (proj.dist < minDistance) {
+          minDistance = proj.dist;
+          minProj = proj;
+        }
+      }
+
+      const maxAllowedDist = (pathWidth / 2) - cursorRadius;
+
+      // If cursor exceeds allowed corridor, clamp it to the boundary
+      if (minDistance > maxAllowedDist) {
+        // Trigger collision penalty
+        health = Math.max(0, health - 1.2);
         errors++;
         errorCountEl.textContent = Math.floor(errors / 3);
         healthBar.style.width = health + '%';
@@ -453,13 +466,22 @@
         playBuzzSound();
         triggerHaptic();
 
+        // Hard clamp position to wall edge
+        if (minDistance > 0 && minProj) {
+          const dx = (simulatedPos.x - minProj.x) / minDistance;
+          const dy = (simulatedPos.y - minProj.y) / minDistance;
+
+          simulatedPos.x = minProj.x + dx * maxAllowedDist;
+          simulatedPos.y = minProj.y + dy * maxAllowedDist;
+        }
+
         if (health <= 0) {
           endGame(false);
+          return;
         }
       }
 
       // Check Win Condition
-      const scaledWp = getScaledWaypoints();
       const goal = scaledWp[scaledWp.length - 1];
       const distToGoal = Math.hypot(simulatedPos.x - goal.x, simulatedPos.y - goal.y);
       if (distToGoal < pathWidth / 2) {
@@ -471,7 +493,7 @@
       if (!isTouching && isPlaying) return;
 
       ctx.beginPath();
-      ctx.arc(simulatedPos.x, simulatedPos.y, 12, 0, Math.PI * 2);
+      ctx.arc(simulatedPos.x, simulatedPos.y, cursorRadius, 0, Math.PI * 2);
       ctx.fillStyle = mode === 'pre' ? '#ef3b42' : '#2b62a8';
       ctx.shadowColor = mode === 'pre' ? '#ef3b42' : '#2b62a8';
       ctx.shadowBlur = 14;
@@ -483,7 +505,7 @@
       drawCircuit();
       if (isPlaying && isTouching) {
         simulatedPos = applyTremor(rawPos.x, rawPos.y);
-        checkCollision();
+        enforceBoundariesAndCheckCollision();
         drawCursor();
       }
       requestAnimationFrame(loop);

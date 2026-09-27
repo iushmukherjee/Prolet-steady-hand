@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>ProLet Neural Circuit Precision Challenge - IANCON Demo</title>
+  <style>
+    :root {
+      /* Extracted Brand Palette from ProLet Logo */
+      --prolet-blue: #2b62a8;
+      --prolet-red: #ef3b42;
+      --prolet-dark: #0b0c0e;
+      --prolet-card: #18191b;
+      --prolet-card-border: #2a2d32;
+      
+      --accent-green: #2ed573;
+      --text-main: #f1f2f6;
+      --text-muted: #a4b0be;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      touch-action: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--prolet-dark);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .brand-logo {
+      max-height: 52px;
+      max-width: 220px;
+      object-fit: contain;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      font-size: 1.3rem;
+      letter-spacing: 1.5px;
+      color: var(--prolet-blue);
+      text-transform: uppercase;
+      font-weight: 800;
+    }
+
+    p.subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .controls-panel {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .mode-btn {
+      flex: 1;
+      padding: 12px 8px;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      background: var(--prolet-card);
+      color: var(--text-main);
+      font-weight: bold;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .mode-btn.active-pre {
+      border-color: var(--prolet-red);
+      box-shadow: 0 0 12px rgba(239, 59, 66, 0.4);
+      background: #2a1012;
+      color: #fff;
+    }
+
+    .mode-btn.active-post {
+      border-color: var(--prolet-blue);
+      box-shadow: 0 0 12px rgba(43, 98, 168, 0.5);
+      background: #0f1d30;
+      color: #fff;
+    }
+
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      max-width: 480px;
+      background: var(--prolet-card);
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--prolet-card-border);
+      margin-bottom: 12px;
+    }
+
+    .health-container {
+      width: 60%;
+      background: #000;
+      height: 16px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #333;
+    }
+
+    .health-bar {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--prolet-red), var(--prolet-blue));
+      transition: width 0.1s linear;
+    }
+
+    .metrics {
+      font-size: 0.85rem;
+      font-weight: bold;
+    }
+
+    #game-container {
+      position: relative;
+      width: 100%;
+      max-width: 480px;
+      aspect-ratio: 1 / 1;
+      background: var(--prolet-card);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--prolet-card-border);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(11, 12, 14, 0.88);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      text-align: center;
+      backdrop-filter: blur(5px);
+    }
+
+    .overlay h2 {
+      font-size: 1.6rem;
+      margin-bottom: 8px;
+    }
+
+    .overlay p {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      line-height: 1.4;
+    }
+
+    .btn-action {
+      background: var(--prolet-blue);
+      color: #fff;
+      font-weight: bold;
+      border: none;
+      padding: 12px 28px;
+      border-radius: 24px;
+      font-size: 1rem;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(43, 98, 168, 0.4);
+      transition: background 0.2s;
+    }
+
+    .btn-action:active {
+      background: #20497e;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <!-- Logo loaded directly from repository root -->
+    <img 
+      src="logo.png" 
+      alt="ProLet Logo" 
+      class="brand-logo"
+      onerror="this.style.display='none';"
+    />
+    <h1>Neural Circuit Challenge</h1>
+    <p class="subtitle">Essential Tremor Simulation & Assessment Demo</p>
+  </header>
+
+  <div class="controls-panel">
+    <button id="btn-pre" class="mode-btn active-pre">Pre-Treatment</button>
+    <button id="btn-post" class="mode-btn">Post-ProLet</button>
+  </div>
+
+  <div class="status-bar">
+    <div>
+      <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">STABILITY</span>
+      <div class="health-container">
+        <div id="health-bar" class="health-bar"></div>
+      </div>
+    </div>
+    <div class="metrics">
+      <span style="font-size: 0.75rem; color: var(--text-muted); display: block; text-align: right;">ERRORS</span>
+      <span id="error-count" style="color: var(--prolet-red); font-size: 1.1rem;">0</span>
+    </div>
+  </div>
+
+  <div id="game-container">
+    <canvas id="mazeCanvas"></canvas>
+    
+    <div id="start-overlay" class="overlay">
+      <h2>Trace the Circuit</h2>
+      <p>Touch and drag the cursor from <strong>START</strong> to <strong>GOAL</strong> without touching the circuit walls.</p>
+      <button id="start-btn" class="btn-action">Begin Challenge</button>
+    </div>
+
+    <div id="end-overlay" class="overlay hidden">
+      <h2 id="result-title">Circuit Completed!</h2>
+      <p id="result-desc"></p>
+      <button id="retry-btn" class="btn-action">Try Again</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('mazeCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    const btnPre = document.getElementById('btn-pre');
+    const btnPost = document.getElementById('btn-post');
+    const healthBar = document.getElementById('health-bar');
+    const errorCountEl = document.getElementById('error-count');
+    const startOverlay = document.getElementById('start-overlay');
+    const endOverlay = document.getElementById('end-overlay');
+    const startBtn = document.getElementById('start-btn');
+    const retryBtn = document.getElementById('retry-btn');
+    const resultTitle = document.getElementById('result-title');
+    const resultDesc = document.getElementById('result-desc');
+
+    // Audio Context Setup
+    let audioCtx = null;
+    function playBuzzSound() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(110, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+      
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    function triggerHaptic() {
+      if ('vibrate' in navigator) {
+        navigator.vibrate(40);
+      }
+    }
+
+    // State Variables
+    let mode = 'pre';
+    let isPlaying = false;
+    let isTouching = false;
+    let health = 100;
+    let errors = 0;
+    
+    let rawPos = { x: 0, y: 0 };
+    let simulatedPos = { x: 0, y: 0 };
+    
+    // Path Definition
+    const waypoints = [
+      { x: 0.15, y: 0.15 },
+      { x: 0.85, y: 0.15 },
+      { x: 0.85, y: 0.50 },
+      { x: 0.15, y: 0.50 },
+      { x: 0.15, y: 0.85 },
+      { x: 0.85, y: 0.85 }
+    ];
+    const pathWidth = 36;
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Mode Selection
+    btnPre.addEventListener('click', () => {
+      mode = 'pre';
+      btnPre.classList.add('active-pre');
+      btnPost.classList.remove('active-post');
+      resetGame();
+    });
+
+    btnPost.addEventListener('click', () => {
+      mode = 'post';
+      btnPost.classList.add('active-post');
+      btnPre.classList.remove('active-pre');
+      resetGame();
+    });
+
+    // Tremor Generator
+    function applyTremor(x, y) {
+      if (mode === 'post') return { x, y };
+      
+      const time = performance.now() * 0.025;
+      const amplitude = 14.0;
+      
+      const offsetX = (Math.sin(time * 1.3) + Math.cos(time * 2.1)) * amplitude;
+      const offsetY = (Math.cos(time * 1.7) + Math.sin(time * 2.4)) * amplitude;
+
+      return {
+        x: x + offsetX,
+        y: y + offsetY
+      };
+    }
+
+    function getScaledWaypoints() {
+      return waypoints.map(wp => ({
+        x: wp.x * canvas.width,
+        y: wp.y * canvas.height
+      }));
+    }
+
+    function drawCircuit() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const scaledWp = getScaledWaypoints();
+
+      // Outer Border
+      ctx.beginPath();
+      ctx.moveTo(scaledWp[0].x, scaledWp[0].y);
+      for (let i = 1; i < scaledWp.length; i++) {
+        ctx.lineTo(scaledWp[i].x, scaledWp[i].y);
+      }
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = pathWidth + 8;
+      ctx.strokeStyle = '#2a2d32';
+      ctx.stroke();
+
+      // Inner Safe Path
+      ctx.beginPath();
+      ctx.moveTo(scaledWp[0].x, scaledWp[0].y);
+      for (let i = 1; i < scaledWp.length; i++) {
+        ctx.lineTo(scaledWp[i].x, scaledWp[i].y);
+      }
+      ctx.lineWidth = pathWidth;
+      ctx.strokeStyle = '#101114';
+      ctx.stroke();
+
+      // Start Node (Brand Blue)
+      ctx.beginPath();
+      ctx.arc(scaledWp[0].x, scaledWp[0].y, pathWidth / 2 + 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#2b62a8';
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('START', scaledWp[0].x, scaledWp[0].y);
+
+      // Goal Node (Green Success Accent)
+      const endWp = scaledWp[scaledWp.length - 1];
+      ctx.beginPath();
+      ctx.arc(endWp.x, endWp.y, pathWidth / 2 + 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#2ed573';
+      ctx.fill();
+      ctx.fillStyle = '#000000';
+      ctx.fillText('GOAL', endWp.x, endWp.y);
+    }
+
+    function isPointInPath(point) {
+      const scaledWp = getScaledWaypoints();
+      for (let i = 0; i < scaledWp.length - 1; i++) {
+        const p1 = scaledWp[i];
+        const p2 = scaledWp[i + 1];
+        if (distToSegment(point, p1, p2) <= pathWidth / 2) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function distToSegment(p, v, w) {
+      const l2 = (v.x - w.x) ** 2 + (v.y - w.y) ** 2;
+      if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
+      let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+      t = Math.max(0, Math.min(1, t));
+      return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
+    }
+
+    function checkCollision() {
+      if (!isPlaying || !isTouching) return;
+
+      const inside = isPointInPath(simulatedPos);
+      if (!inside) {
+        health = Math.max(0, health - 1.5);
+        errors++;
+        errorCountEl.textContent = Math.floor(errors / 3);
+        healthBar.style.width = health + '%';
+        
+        playBuzzSound();
+        triggerHaptic();
+
+        if (health <= 0) {
+          endGame(false);
+        }
+      }
+
+      // Check Win Condition
+      const scaledWp = getScaledWaypoints();
+      const goal = scaledWp[scaledWp.length - 1];
+      const distToGoal = Math.hypot(simulatedPos.x - goal.x, simulatedPos.y - goal.y);
+      if (distToGoal < pathWidth / 2) {
+        endGame(true);
+      }
+    }
+
+    function drawCursor() {
+      if (!isTouching && isPlaying) return;
+
+      ctx.beginPath();
+      ctx.arc(simulatedPos.x, simulatedPos.y, 10, 0, Math.PI * 2);
+      ctx.fillStyle = mode === 'pre' ? '#ef3b42' : '#2b62a8';
+      ctx.shadowColor = mode === 'pre' ? '#ef3b42' : '#2b62a8';
+      ctx.shadowBlur = 12;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    function loop() {
+      drawCircuit();
+      if (isPlaying && isTouching) {
+        simulatedPos = applyTremor(rawPos.x, rawPos.y);
+        checkCollision();
+        drawCursor();
+      }
+      requestAnimationFrame(loop);
+    }
+
+    // Input Handling
+    function handlePointerMove(e) {
+      const rect = canvas.getBoundingClientRect();
+      rawPos = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+    }
+
+    function handlePointerDown(e) {
+      const rect = canvas.getBoundingClientRect();
+      const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const startWp = getScaledWaypoints()[0];
+      const distToStart = Math.hypot(pos.x - startWp.x, pos.y - startWp.y);
+
+      if (distToStart <= pathWidth) {
+        isTouching = true;
+        rawPos = pos;
+      }
+    }
+
+    function handlePointerUp() {
+      isTouching = false;
+    }
+
+    canvas.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+
+    function resetGame() {
+      health = 100;
+      errors = 0;
+      isPlaying = false;
+      isTouching = false;
+      healthBar.style.width = '100%';
+      errorCountEl.textContent = '0';
+      endOverlay.classList.add('hidden');
+      startOverlay.classList.remove('hidden');
+    }
+
+    function endGame(won) {
+      isPlaying = false;
+      endOverlay.classList.remove('hidden');
+      if (won) {
+        resultTitle.textContent = mode === 'post' ? 'Smooth Navigation!' : 'Challenge Complete!';
+        resultTitle.style.color = mode === 'post' ? 'var(--prolet-blue)' : 'var(--accent-green)';
+        resultDesc.textContent = mode === 'post' 
+          ? `With ProLet stability, you reached the goal effortlessly with minimal boundary errors (${Math.floor(errors/3)} total line hits).`
+          : `You reached the goal, but uncontrolled tremor caused ${Math.floor(errors/3)} boundary collisions and drained ${Math.floor(100 - health)}% stability.`;
+      } else {
+        resultTitle.textContent = 'Circuit Fault!';
+        resultTitle.style.color = 'var(--prolet-red)';
+        resultDesc.textContent = 'Excessive tremor caused repeated wall collisions, completely depleting stability meter.';
+      }
+    }
+
+    startBtn.addEventListener('click', () => {
+      startOverlay.classList.add('hidden');
+      isPlaying = true;
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    });
+
+    retryBtn.addEventListener('click', resetGame);
+
+    loop();
+  </script>
+</body>
+</html>

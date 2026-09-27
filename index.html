@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>ProLet Neural Circuit Precision Challenge - IANCON Demo</title>
+  
   <style>
     :root {
       --prolet-blue: #2b62a8;
@@ -149,8 +150,8 @@
       position: relative;
       width: 100%;
       max-width: 650px;
-      height: 60vh;
-      min-height: 380px;
+      height: 50vh;
+      min-height: 320px;
       background: var(--prolet-card);
       border-radius: 12px;
       overflow: hidden;
@@ -167,7 +168,7 @@
     .overlay {
       position: absolute;
       inset: 0;
-      background: rgba(11, 12, 14, 0.88);
+      background: rgba(11, 12, 14, 0.92);
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -175,18 +176,43 @@
       padding: 24px;
       text-align: center;
       backdrop-filter: blur(5px);
+      z-index: 10;
     }
 
     .overlay h2 {
-      font-size: 1.6rem;
+      font-size: 1.5rem;
       margin-bottom: 8px;
     }
 
     .overlay p {
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       color: var(--text-muted);
-      margin-bottom: 20px;
+      margin-bottom: 16px;
       line-height: 1.4;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+      max-width: 280px;
+      margin-bottom: 16px;
+    }
+
+    .input-group input {
+      background: #000;
+      border: 1px solid var(--prolet-card-border);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      text-align: center;
+      outline: none;
+    }
+
+    .input-group input:focus {
+      border-color: var(--prolet-blue);
     }
 
     .btn-action {
@@ -194,9 +220,9 @@
       color: #fff;
       font-weight: bold;
       border: none;
-      padding: 14px 32px;
+      padding: 12px 28px;
       border-radius: 24px;
-      font-size: 1.05rem;
+      font-size: 0.95rem;
       cursor: pointer;
       box-shadow: 0 4px 12px rgba(43, 98, 168, 0.4);
       transition: background 0.2s;
@@ -204,6 +230,102 @@
 
     .btn-action:active {
       background: #20497e;
+    }
+
+    /* Leaderboard Card */
+    .leaderboard-card {
+      width: 100%;
+      max-width: 650px;
+      background: var(--prolet-card);
+      border: 1px solid var(--prolet-card-border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+
+    .leaderboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .leaderboard-card h3 {
+      font-size: 1.05rem;
+      color: var(--prolet-blue);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .share-btn {
+      background: #2a2d32;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+      padding: 6px 12px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .share-btn:active {
+      background: #333840;
+    }
+
+    .leaderboard-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .leaderboard-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #101114;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+
+    .leaderboard-item .rank {
+      font-weight: bold;
+      color: var(--text-muted);
+      width: 24px;
+    }
+
+    .leaderboard-item .name {
+      flex: 1;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding-right: 8px;
+    }
+
+    .leaderboard-item .badge {
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-right: 8px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+
+    .badge-pre {
+      background: rgba(239, 59, 66, 0.2);
+      color: var(--prolet-red);
+    }
+
+    .badge-post {
+      background: rgba(43, 98, 168, 0.2);
+      color: var(--prolet-blue);
+    }
+
+    .leaderboard-item .score {
+      font-weight: bold;
+      color: var(--accent-green);
     }
 
     .hidden {
@@ -250,6 +372,11 @@
     <div id="start-overlay" class="overlay">
       <h2>Trace the Circuit</h2>
       <p>Touch and drag the cursor from <strong>START</strong> to <strong>GOAL</strong> without touching the circuit walls.</p>
+      
+      <div class="input-group">
+        <input type="text" id="player-name" placeholder="Enter Your Name" maxlength="15" />
+      </div>
+
       <button id="start-btn" class="btn-action">Begin Challenge</button>
     </div>
 
@@ -258,6 +385,17 @@
       <p id="result-desc"></p>
       <button id="retry-btn" class="btn-action">Try Again</button>
     </div>
+  </div>
+
+  <!-- LINK LEADERBOARD -->
+  <div class="leaderboard-card">
+    <div class="leaderboard-header">
+      <h3>Link Leaderboard</h3>
+      <button id="share-link-btn" class="share-btn">Copy Link with Scores</button>
+    </div>
+    <ul id="leaderboard-list" class="leaderboard-list">
+      <li class="leaderboard-item"><span>No scores saved in link yet</span></li>
+    </ul>
   </div>
 
   <script>
@@ -274,6 +412,9 @@
     const retryBtn = document.getElementById('retry-btn');
     const resultTitle = document.getElementById('result-title');
     const resultDesc = document.getElementById('result-desc');
+    const playerNameInput = document.getElementById('player-name');
+    const leaderboardList = document.getElementById('leaderboard-list');
+    const shareLinkBtn = document.getElementById('share-link-btn');
 
     let audioCtx = null;
     let lastBuzzTime = 0;
@@ -299,9 +440,7 @@
     }
 
     function triggerHaptic() {
-      if ('vibrate' in navigator) {
-        navigator.vibrate(40);
-      }
+      if ('vibrate' in navigator) navigator.vibrate(40);
     }
 
     let mode = 'pre';
@@ -309,6 +448,7 @@
     let isTouching = false;
     let health = 100;
     let errors = 0;
+    let globalScores = [];
     
     let currentPos = { x: 0, y: 0 };
     let rawPos = { x: 0, y: 0 };
@@ -322,13 +462,12 @@
       { x: 0.14, y: 0.85 },
       { x: 0.86, y: 0.85 }
     ];
-    let pathWidth = 60; // Increased base width for generous corridor space
+    let pathWidth = 60;
 
     function resizeCanvas() {
       const rect = canvas.getBoundingClientRect();
       canvas.width = rect.width;
       canvas.height = rect.height;
-      // Dynamically scale path width so it is wider across screens
       pathWidth = Math.min(canvas.width, canvas.height) * 0.13;
     }
     window.addEventListener('resize', resizeCanvas);
@@ -350,55 +489,40 @@
 
     function applyTremor(pos) {
       if (mode === 'post') return { ...pos };
-      
       const time = performance.now() * 0.025;
       const amplitude = 16.0;
-      
-      const offsetX = (Math.sin(time * 1.3) + Math.cos(time * 2.1)) * amplitude;
-      const offsetY = (Math.cos(time * 1.7) + Math.sin(time * 2.4)) * amplitude;
-
       return {
-        x: pos.x + offsetX,
-        y: pos.y + offsetY
+        x: pos.x + (Math.sin(time * 1.3) + Math.cos(time * 2.1)) * amplitude,
+        y: pos.y + (Math.cos(time * 1.7) + Math.sin(time * 2.4)) * amplitude
       };
     }
 
     function getScaledWaypoints() {
-      return waypoints.map(wp => ({
-        x: wp.x * canvas.width,
-        y: wp.y * canvas.height
-      }));
+      return waypoints.map(wp => ({ x: wp.x * canvas.width, y: wp.y * canvas.height }));
     }
 
     function drawCircuit() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const scaledWp = getScaledWaypoints();
 
-      // Outer Border Wall
       ctx.beginPath();
       ctx.moveTo(scaledWp[0].x, scaledWp[0].y);
-      for (let i = 1; i < scaledWp.length; i++) {
-        ctx.lineTo(scaledWp[i].x, scaledWp[i].y);
-      }
+      for (let i = 1; i < scaledWp.length; i++) ctx.lineTo(scaledWp[i].x, scaledWp[i].y);
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.lineWidth = pathWidth + 10;
       ctx.strokeStyle = '#2a2d32';
       ctx.stroke();
 
-      // Inner Safe Corridor
       ctx.beginPath();
       ctx.moveTo(scaledWp[0].x, scaledWp[0].y);
-      for (let i = 1; i < scaledWp.length; i++) {
-        ctx.lineTo(scaledWp[i].x, scaledWp[i].y);
-      }
+      for (let i = 1; i < scaledWp.length; i++) ctx.lineTo(scaledWp[i].x, scaledWp[i].y);
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.lineWidth = pathWidth;
       ctx.strokeStyle = '#101114';
       ctx.stroke();
 
-      // Start Node
       ctx.beginPath();
       ctx.arc(scaledWp[0].x, scaledWp[0].y, pathWidth / 2 + 3, 0, Math.PI * 2);
       ctx.fillStyle = '#2b62a8';
@@ -409,7 +533,6 @@
       ctx.textBaseline = 'middle';
       ctx.fillText('START', scaledWp[0].x, scaledWp[0].y);
 
-      // Goal Node
       const endWp = scaledWp[scaledWp.length - 1];
       ctx.beginPath();
       ctx.arc(endWp.x, endWp.y, pathWidth / 2 + 3, 0, Math.PI * 2);
@@ -430,21 +553,12 @@
     function isInsideCorridor(point) {
       const scaledWp = getScaledWaypoints();
       const maxDist = (pathWidth / 2) - cursorRadius;
-      
-      // Check distance to path segments
       for (let i = 0; i < scaledWp.length - 1; i++) {
-        if (distToSegment(point, scaledWp[i], scaledWp[i + 1]) <= maxDist) {
-          return true;
-        }
+        if (distToSegment(point, scaledWp[i], scaledWp[i + 1]) <= maxDist) return true;
       }
-      
-      // Check distance to corner joints (enables smooth corner turning)
       for (let i = 0; i < scaledWp.length; i++) {
-        if (Math.hypot(point.x - scaledWp[i].x, point.y - scaledWp[i].y) <= maxDist) {
-          return true;
-        }
+        if (Math.hypot(point.x - scaledWp[i].x, point.y - scaledWp[i].y) <= maxDist) return true;
       }
-      
       return false;
     }
 
@@ -489,18 +603,15 @@
         }
       }
 
-      // Check Win Condition
       const scaledWp = getScaledWaypoints();
       const goal = scaledWp[scaledWp.length - 1];
-      const distToGoal = Math.hypot(currentPos.x - goal.x, currentPos.y - goal.y);
-      if (distToGoal < pathWidth / 2) {
+      if (Math.hypot(currentPos.x - goal.x, currentPos.y - goal.y) < pathWidth / 2) {
         endGame(true);
       }
     }
 
     function drawCursor() {
       if (!isTouching && isPlaying) return;
-
       ctx.beginPath();
       ctx.arc(currentPos.x, currentPos.y, cursorRadius, 0, Math.PI * 2);
       ctx.fillStyle = mode === 'pre' ? '#ef3b42' : '#2b62a8';
@@ -521,28 +632,22 @@
 
     function handlePointerMove(e) {
       const rect = canvas.getBoundingClientRect();
-      rawPos = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      };
+      rawPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     }
 
     function handlePointerDown(e) {
       const rect = canvas.getBoundingClientRect();
       const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       const startWp = getScaledWaypoints()[0];
-      const distToStart = Math.hypot(pos.x - startWp.x, pos.y - startWp.y);
 
-      if (distToStart <= pathWidth) {
+      if (Math.hypot(pos.x - startWp.x, pos.y - startWp.y) <= pathWidth) {
         isTouching = true;
         currentPos = { x: startWp.x, y: startWp.y };
         rawPos = pos;
       }
     }
 
-    function handlePointerUp() {
-      isTouching = false;
-    }
+    function handlePointerUp() { isTouching = false; }
 
     canvas.addEventListener('pointerdown', handlePointerDown);
     window.addEventListener('pointermove', handlePointerMove);
@@ -559,15 +664,79 @@
       startOverlay.classList.remove('hidden');
     }
 
+    // --- LINK URL LEADERBOARD PARSING & UPDATING ---
+    function loadLeaderboardFromURL() {
+      const params = new URLSearchParams(window.location.search);
+      const scoresParam = params.get('scores');
+      
+      globalScores = [];
+      if (scoresParam) {
+        // Format: Name1:Score1:Mode1|Name2:Score2:Mode2
+        const entries = scoresParam.split('|');
+        entries.forEach(e => {
+          const [name, score, mode] = e.split(':');
+          if (name && score && mode) {
+            globalScores.push({ name: decodeURIComponent(name), score: parseInt(score), mode });
+          }
+        });
+      }
+      renderLeaderboard();
+    }
+
+    function updateURLWithScores() {
+      globalScores.sort((a, b) => b.score - a.score);
+      const topFive = globalScores.slice(0, 5);
+      
+      const encodedScores = topFive.map(s => `${encodeURIComponent(s.name)}:${s.score}:${s.mode}`).join('|');
+      const newUrl = `${window.location.origin}${window.location.pathname}?scores=${encodedScores}`;
+      
+      window.history.replaceState({ path: newUrl }, '', newUrl);
+      renderLeaderboard();
+    }
+
+    function renderLeaderboard() {
+      leaderboardList.innerHTML = '';
+
+      if (globalScores.length === 0) {
+        leaderboardList.innerHTML = '<li class="leaderboard-item"><span>No scores in link yet</span></li>';
+        return;
+      }
+
+      globalScores.forEach((entry, idx) => {
+        const li = document.createElement('li');
+        li.className = 'leaderboard-item';
+        const badgeClass = entry.mode === 'pre' ? 'badge-pre' : 'badge-post';
+        
+        li.innerHTML = `
+          <span class="rank">#${idx + 1}</span>
+          <span class="name">${entry.name}</span>
+          <span class="badge ${badgeClass}">${entry.mode}</span>
+          <span class="score">${entry.score}%</span>
+        `;
+        leaderboardList.appendChild(li);
+      });
+    }
+
+    shareLinkBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(window.location.href).then(() => {
+        shareLinkBtn.textContent = 'Link Copied!';
+        setTimeout(() => { shareLinkBtn.textContent = 'Copy Link with Scores'; }, 2000);
+      });
+    });
+
     function endGame(won) {
       isPlaying = false;
       endOverlay.classList.remove('hidden');
+      const finalScore = Math.max(0, Math.floor(health));
+
       if (won) {
         resultTitle.textContent = mode === 'post' ? 'Smooth Navigation!' : 'Challenge Complete!';
         resultTitle.style.color = mode === 'post' ? 'var(--prolet-blue)' : 'var(--accent-green)';
-        resultDesc.textContent = mode === 'post' 
-          ? `With ProLet stability, you reached the goal effortlessly with minimal boundary errors (${Math.floor(errors/3)} total line hits).`
-          : `You reached the goal, but uncontrolled tremor caused ${Math.floor(errors/3)} boundary collisions and drained ${Math.floor(100 - health)}% stability.`;
+        resultDesc.textContent = `Score: ${finalScore}% Stability Remaining (${Math.floor(errors/3)} wall touches).`;
+        
+        const playerName = playerNameInput.value.trim() || 'Player';
+        globalScores.push({ name: playerName, score: finalScore, mode: mode });
+        updateURLWithScores();
       } else {
         resultTitle.textContent = 'Circuit Fault!';
         resultTitle.style.color = 'var(--prolet-red)';
@@ -585,6 +754,7 @@
 
     retryBtn.addEventListener('click', resetGame);
 
+    loadLeaderboardFromURL();
     loop();
   </script>
 </body>

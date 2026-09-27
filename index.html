@@ -34,7 +34,7 @@
       flex-direction: column;
       align-items: center;
       min-height: 100vh;
-      padding: 16px;
+      padding: 12px 16px;
     }
 
     header {
@@ -43,13 +43,26 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      width: 100%;
+    }
+
+    /* Container for logo to ensure full visibility of black lettering */
+    .brand-logo-wrapper {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 6px 16px;
+      border-radius: 12px;
+      margin-bottom: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(4px);
     }
 
     .brand-logo {
-      max-height: 52px;
-      max-width: 220px;
+      max-height: 56px;
+      max-width: 240px;
       object-fit: contain;
-      margin-bottom: 8px;
+      display: block;
+      /* Dropshadow outline makes black text pop on dark background */
+      filter: drop-shadow(0px 0px 4px rgba(255, 255, 255, 0.85));
     }
 
     h1 {
@@ -71,18 +84,18 @@
       gap: 12px;
       margin-bottom: 12px;
       width: 100%;
-      max-width: 480px;
+      max-width: 650px; /* Expanded max-width */
     }
 
     .mode-btn {
       flex: 1;
-      padding: 12px 8px;
+      padding: 14px 10px;
       border: 2px solid transparent;
       border-radius: 8px;
       background: var(--prolet-card);
       color: var(--text-main);
       font-weight: bold;
-      font-size: 0.9rem;
+      font-size: 0.95rem;
       cursor: pointer;
       transition: all 0.2s ease;
     }
@@ -106,9 +119,9 @@
       justify-content: space-between;
       align-items: center;
       width: 100%;
-      max-width: 480px;
+      max-width: 650px; /* Expanded max-width */
       background: var(--prolet-card);
-      padding: 10px 16px;
+      padding: 12px 18px;
       border-radius: 8px;
       border: 1px solid var(--prolet-card-border);
       margin-bottom: 12px;
@@ -117,7 +130,7 @@
     .health-container {
       width: 60%;
       background: #000;
-      height: 16px;
+      height: 18px;
       border-radius: 8px;
       overflow: hidden;
       border: 1px solid #333;
@@ -135,11 +148,13 @@
       font-weight: bold;
     }
 
+    /* EXPANDED CANVAS CONTAINER */
     #game-container {
       position: relative;
       width: 100%;
-      max-width: 480px;
-      aspect-ratio: 1 / 1;
+      max-width: 650px; /* Expanded from 480px to 650px */
+      height: 60vh; /* Scaled to take up more screen height */
+      min-height: 380px;
       background: var(--prolet-card);
       border-radius: 12px;
       overflow: hidden;
@@ -183,9 +198,9 @@
       color: #fff;
       font-weight: bold;
       border: none;
-      padding: 12px 28px;
+      padding: 14px 32px;
       border-radius: 24px;
-      font-size: 1rem;
+      font-size: 1.05rem;
       cursor: pointer;
       box-shadow: 0 4px 12px rgba(43, 98, 168, 0.4);
       transition: background 0.2s;
@@ -203,13 +218,15 @@
 <body>
 
   <header>
-    <!-- Logo loaded directly from repository root -->
-    <img 
-      src="logo.png" 
-      alt="ProLet Logo" 
-      class="brand-logo"
-      onerror="this.style.display='none';"
-    />
+    <!-- Logo with Contrast Enhancements -->
+    <div class="brand-logo-wrapper">
+      <img 
+        src="logo.png" 
+        alt="ProLet Logo" 
+        class="brand-logo"
+        onerror="this.parentElement.style.display='none';"
+      />
+    </div>
     <h1>Neural Circuit Challenge</h1>
     <p class="subtitle">Essential Tremor Simulation & Assessment Demo</p>
   </header>
@@ -298,21 +315,22 @@
     let rawPos = { x: 0, y: 0 };
     let simulatedPos = { x: 0, y: 0 };
     
-    // Path Definition
+    // Waypoints for Circuit (Normalized 0 to 1)
     const waypoints = [
-      { x: 0.15, y: 0.15 },
-      { x: 0.85, y: 0.15 },
-      { x: 0.85, y: 0.50 },
-      { x: 0.15, y: 0.50 },
-      { x: 0.15, y: 0.85 },
-      { x: 0.85, y: 0.85 }
+      { x: 0.12, y: 0.15 },
+      { x: 0.88, y: 0.15 },
+      { x: 0.88, y: 0.50 },
+      { x: 0.12, y: 0.50 },
+      { x: 0.12, y: 0.85 },
+      { x: 0.88, y: 0.85 }
     ];
-    const pathWidth = 36;
+    let pathWidth = 42; // Increased path width for larger canvas
 
     function resizeCanvas() {
       const rect = canvas.getBoundingClientRect();
       canvas.width = rect.width;
       canvas.height = rect.height;
+      pathWidth = Math.min(canvas.width, canvas.height) * 0.09; // Dynamic scaling
     }
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
@@ -337,7 +355,7 @@
       if (mode === 'post') return { x, y };
       
       const time = performance.now() * 0.025;
-      const amplitude = 14.0;
+      const amplitude = 16.0;
       
       const offsetX = (Math.sin(time * 1.3) + Math.cos(time * 2.1)) * amplitude;
       const offsetY = (Math.cos(time * 1.7) + Math.sin(time * 2.4)) * amplitude;
@@ -367,7 +385,7 @@
       }
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      ctx.lineWidth = pathWidth + 8;
+      ctx.lineWidth = pathWidth + 10;
       ctx.strokeStyle = '#2a2d32';
       ctx.stroke();
 
@@ -383,11 +401,11 @@
 
       // Start Node (Brand Blue)
       ctx.beginPath();
-      ctx.arc(scaledWp[0].x, scaledWp[0].y, pathWidth / 2 + 4, 0, Math.PI * 2);
+      ctx.arc(scaledWp[0].x, scaledWp[0].y, pathWidth / 2 + 5, 0, Math.PI * 2);
       ctx.fillStyle = '#2b62a8';
       ctx.fill();
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 10px sans-serif';
+      ctx.font = 'bold 11px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('START', scaledWp[0].x, scaledWp[0].y);
@@ -395,7 +413,7 @@
       // Goal Node (Green Success Accent)
       const endWp = scaledWp[scaledWp.length - 1];
       ctx.beginPath();
-      ctx.arc(endWp.x, endWp.y, pathWidth / 2 + 4, 0, Math.PI * 2);
+      ctx.arc(endWp.x, endWp.y, pathWidth / 2 + 5, 0, Math.PI * 2);
       ctx.fillStyle = '#2ed573';
       ctx.fill();
       ctx.fillStyle = '#000000';
@@ -453,10 +471,10 @@
       if (!isTouching && isPlaying) return;
 
       ctx.beginPath();
-      ctx.arc(simulatedPos.x, simulatedPos.y, 10, 0, Math.PI * 2);
+      ctx.arc(simulatedPos.x, simulatedPos.y, 12, 0, Math.PI * 2);
       ctx.fillStyle = mode === 'pre' ? '#ef3b42' : '#2b62a8';
       ctx.shadowColor = mode === 'pre' ? '#ef3b42' : '#2b62a8';
-      ctx.shadowBlur = 12;
+      ctx.shadowBlur = 14;
       ctx.fill();
       ctx.shadowBlur = 0;
     }

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ProLet Neural Circuit Precision Challenge - IANCON Demo</title>
   
   <style>
@@ -20,8 +20,6 @@
 
     * {
       box-sizing: border-box;
-      user-select: none;
-      touch-action: none;
       margin: 0;
       padding: 0;
     }
@@ -34,7 +32,9 @@
       flex-direction: column;
       align-items: center;
       min-height: 100vh;
-      padding: 12px 16px;
+      padding: 12px 16px 32px 16px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     header {
@@ -168,6 +168,8 @@
       width: 100%;
       height: 100%;
       display: block;
+      touch-action: none;
+      user-select: none;
     }
 
     .overlay {
@@ -252,6 +254,8 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 12px;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
     .leaderboard-card h3 {
@@ -261,18 +265,29 @@
       letter-spacing: 1px;
     }
 
-    .share-btn {
+    .leaderboard-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .share-btn, .reset-btn {
       background: #2a2d32;
       border: 1px solid rgba(255, 255, 255, 0.1);
       color: var(--text-main);
-      padding: 8px 14px;
-      border-radius: 12px;
+      padding: 8px 12px;
+      border-radius: 8px;
       font-size: 0.85rem;
       font-weight: bold;
       cursor: pointer;
+      transition: background 0.2s;
     }
 
-    .share-btn:active {
+    .reset-btn {
+      color: var(--prolet-red);
+      border-color: rgba(239, 59, 66, 0.3);
+    }
+
+    .share-btn:active, .reset-btn:active {
       background: #333840;
     }
 
@@ -395,7 +410,10 @@
   <div class="leaderboard-card">
     <div class="leaderboard-header">
       <h3>Leaderboard</h3>
-      <button id="share-link-btn" class="share-btn">Copy Link with Scores</button>
+      <div class="leaderboard-actions">
+        <button id="reset-scores-btn" class="reset-btn">Reset Scores</button>
+        <button id="share-link-btn" class="share-btn">Copy Link</button>
+      </div>
     </div>
     <ul id="leaderboard-list" class="leaderboard-list">
       <li class="leaderboard-item"><span>No scores available</span></li>
@@ -419,6 +437,7 @@
     const playerNameInput = document.getElementById('player-name');
     const leaderboardList = document.getElementById('leaderboard-list');
     const shareLinkBtn = document.getElementById('share-link-btn');
+    const resetScoresBtn = document.getElementById('reset-scores-btn');
     const overlayInstructions = document.getElementById('overlay-instructions');
 
     const STORAGE_KEY = 'prolet_leaderboard_scores';
@@ -469,15 +488,17 @@
       { x: 0.16, y: 0.84 },
       { x: 0.84, y: 0.84 }
     ];
-    let pathWidth = 70;
+    
+    let pathWidth = 36;
     let nodeRadius = 45;
 
     function resizeCanvas() {
       const rect = canvas.getBoundingClientRect();
       canvas.width = rect.width;
       canvas.height = rect.height;
-      pathWidth = Math.min(canvas.width, canvas.height) * 0.15;
-      nodeRadius = Math.max(38, pathWidth / 2 + 8);
+      
+      pathWidth = Math.max(28, Math.min(38, Math.min(canvas.width, canvas.height) * 0.08));
+      nodeRadius = Math.max(38, Math.min(50, Math.min(canvas.width, canvas.height) * 0.11));
     }
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
@@ -520,7 +541,6 @@
       return waypoints.map(wp => ({ x: wp.x * canvas.width, y: wp.y * canvas.height }));
     }
 
-    // Helper to draw text with a black outline so it is easily readable
     function drawOutlinedText(text, x, y, font, fillStyle) {
       ctx.font = font;
       ctx.textAlign = 'center';
@@ -536,17 +556,15 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const scaledWp = getScaledWaypoints();
 
-      // Outer boundary path
       ctx.beginPath();
       ctx.moveTo(scaledWp[0].x, scaledWp[0].y);
       for (let i = 1; i < scaledWp.length; i++) ctx.lineTo(scaledWp[i].x, scaledWp[i].y);
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      ctx.lineWidth = pathWidth + 12;
+      ctx.lineWidth = pathWidth + 10;
       ctx.strokeStyle = '#2a2d32';
       ctx.stroke();
 
-      // Inner corridor path
       ctx.beginPath();
       ctx.moveTo(scaledWp[0].x, scaledWp[0].y);
       for (let i = 1; i < scaledWp.length; i++) ctx.lineTo(scaledWp[i].x, scaledWp[i].y);
@@ -556,7 +574,6 @@
       ctx.strokeStyle = '#101114';
       ctx.stroke();
 
-      // Start Node (Dynamic Label)
       const startLabel = mode === 'pre' ? 'GABA' : 'Phenobarbital';
       ctx.beginPath();
       ctx.arc(scaledWp[0].x, scaledWp[0].y, nodeRadius, 0, Math.PI * 2);
@@ -566,11 +583,9 @@
       ctx.strokeStyle = '#ffffff';
       ctx.stroke();
 
-      // Font size scales with canvas width
       const fontSize = Math.max(13, Math.floor(canvas.width * 0.032));
       drawOutlinedText(startLabel, scaledWp[0].x, scaledWp[0].y, `bold ${fontSize}px sans-serif`, '#ffffff');
 
-      // Goal Node (GABA Receptor)
       const endWp = scaledWp[scaledWp.length - 1];
       ctx.beginPath();
       ctx.arc(endWp.x, endWp.y, nodeRadius, 0, Math.PI * 2);
@@ -594,12 +609,15 @@
     function isInsideCorridor(point) {
       const scaledWp = getScaledWaypoints();
       const maxDist = (pathWidth / 2) - cursorRadius;
+      
       for (let i = 0; i < scaledWp.length - 1; i++) {
         if (distToSegment(point, scaledWp[i], scaledWp[i + 1]) <= maxDist) return true;
       }
-      for (let i = 0; i < scaledWp.length; i++) {
-        if (Math.hypot(point.x - scaledWp[i].x, point.y - scaledWp[i].y) <= maxDist) return true;
-      }
+      
+      if (Math.hypot(point.x - scaledWp[0].x, point.y - scaledWp[0].y) <= nodeRadius - cursorRadius) return true;
+      const goalWp = scaledWp[scaledWp.length - 1];
+      if (Math.hypot(point.x - goalWp.x, point.y - goalWp.y) <= nodeRadius - cursorRadius) return true;
+
       return false;
     }
 
@@ -630,7 +648,7 @@
       currentPos.y = nextY;
 
       if (hitWall) {
-        health = Math.max(0, health - 1.0);
+        health = Math.max(0, health - 1.2);
         errors++;
         errorCountEl.textContent = Math.floor(errors / 3);
         healthBar.style.width = health + '%';
@@ -783,8 +801,20 @@
     shareLinkBtn.addEventListener('click', () => {
       navigator.clipboard.writeText(window.location.href).then(() => {
         shareLinkBtn.textContent = 'Link Copied!';
-        setTimeout(() => { shareLinkBtn.textContent = 'Copy Link with Scores'; }, 2000);
+        setTimeout(() => { shareLinkBtn.textContent = 'Copy Link'; }, 2000);
       });
+    });
+
+    // Reset scores event handler with confirmation modal
+    resetScoresBtn.addEventListener('click', () => {
+      const confirmReset = confirm('Are you sure you want to clear all leaderboard scores?');
+      if (confirmReset) {
+        globalScores = [];
+        localStorage.removeItem(STORAGE_KEY);
+        const cleanUrl = `${window.location.origin}${window.location.pathname}`;
+        window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+        renderLeaderboard();
+      }
     });
 
     function endGame(won) {

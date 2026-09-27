@@ -444,25 +444,62 @@
 
     let audioCtx = null;
     let lastBuzzTime = 0;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+    
     function playBuzzSound() {
       const now = performance.now();
       if (now - lastBuzzTime < 120) return;
       lastBuzzTime = now;
 
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
+      initAudio();
       
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
+      
       osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(110, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+      osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+      
+      gain.gain.setValueAtTime(0.60, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
       
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       osc.start();
-      osc.stop(audioCtx.currentTime + 0.1);
+      osc.stop(audioCtx.currentTime + 0.12);
+    }
+
+    function playSuccessSound() {
+      initAudio();
+
+      // Ascending major chord notes (C5, E5, G5, C6)
+      const notes = [523.25, 659.25, 783.99, 1046.50];
+      const now = audioCtx.currentTime;
+
+      notes.forEach((freq, idx) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.1);
+
+        gain.gain.setValueAtTime(0.0, now + idx * 0.1);
+        gain.gain.linearRampToValueAtTime(0.3, now + idx * 0.1 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.1 + 0.4);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start(now + idx * 0.1);
+        osc.stop(now + idx * 0.1 + 0.45);
+      });
     }
 
     function triggerHaptic() {
@@ -507,7 +544,7 @@
       if (mode === 'pre') {
         overlayInstructions.innerHTML = 'Touch and drag from <strong style="color:var(--prolet-red)">GABA</strong> to <strong style="color:var(--accent-green)">GABA Receptor</strong> without touching the circuit walls.';
       } else {
-        overlayInstructions.innerHTML = 'Touch and drag from <strong style="color:var(--prolet-blue)">Phenobarbital</strong> to <strong style="color:var(--accent-green)">GABA Receptor</strong> without touching the circuit walls.';
+        overlayInstructions.innerHTML = 'Touch and drag from <strong style="color:var(--prolet-blue)">PROLET</strong> to <strong style="color:var(--accent-green)">GABA Receptor</strong> without touching the circuit walls.';
       }
     }
 
@@ -574,7 +611,7 @@
       ctx.strokeStyle = '#101114';
       ctx.stroke();
 
-      const startLabel = mode === 'pre' ? 'GABA' : 'Phenobarbital';
+      const startLabel = mode === 'pre' ? 'GABA' : 'PROLET';
       ctx.beginPath();
       ctx.arc(scaledWp[0].x, scaledWp[0].y, nodeRadius, 0, Math.PI * 2);
       ctx.fillStyle = '#2b62a8';
@@ -822,6 +859,7 @@
       const finalScore = Math.max(0, Math.floor(health));
 
       if (won) {
+        playSuccessSound();
         resultTitle.textContent = mode === 'post' ? 'Smooth Navigation!' : 'Challenge Complete!';
         resultTitle.style.color = mode === 'post' ? 'var(--prolet-blue)' : 'var(--accent-green)';
         resultDesc.textContent = `Score: ${finalScore}% Stability Remaining (${Math.floor(errors/3)} wall touches).`;
@@ -841,7 +879,7 @@
       isPlaying = true;
       const startWp = getScaledWaypoints()[0];
       currentPos = { x: startWp.x, y: startWp.y };
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      initAudio();
     });
 
     retryBtn.addEventListener('click', resetGame);

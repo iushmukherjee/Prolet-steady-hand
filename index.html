@@ -481,24 +481,24 @@
     const cursorRadius = 10;
     
     const waypoints = [
-      { x: 0.16, y: 0.16 },
-      { x: 0.84, y: 0.16 },
-      { x: 0.84, y: 0.50 },
-      { x: 0.16, y: 0.50 },
-      { x: 0.16, y: 0.84 },
-      { x: 0.84, y: 0.84 }
+      { x: 0.18, y: 0.18 },
+      { x: 0.82, y: 0.18 },
+      { x: 0.82, y: 0.50 },
+      { x: 0.18, y: 0.50 },
+      { x: 0.18, y: 0.82 },
+      { x: 0.82, y: 0.82 }
     ];
     
-    let pathWidth = 36;
-    let nodeRadius = 45;
+    let pathWidth = 52;
+    let nodeRadius = 58;
 
     function resizeCanvas() {
       const rect = canvas.getBoundingClientRect();
       canvas.width = rect.width;
       canvas.height = rect.height;
       
-      pathWidth = Math.max(28, Math.min(38, Math.min(canvas.width, canvas.height) * 0.08));
-      nodeRadius = Math.max(38, Math.min(50, Math.min(canvas.width, canvas.height) * 0.11));
+      pathWidth = Math.max(48, Math.min(64, Math.min(canvas.width, canvas.height) * 0.14));
+      nodeRadius = Math.max(50, Math.min(68, Math.min(canvas.width, canvas.height) * 0.15));
     }
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
@@ -805,7 +805,6 @@
       });
     });
 
-    // Reset scores event handler with confirmation modal
     resetScoresBtn.addEventListener('click', () => {
       const confirmReset = confirm('Are you sure you want to clear all leaderboard scores?');
       if (confirmReset) {

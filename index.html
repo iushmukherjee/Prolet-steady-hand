@@ -46,21 +46,27 @@
       width: 100%;
     }
 
+    /* HIGH-CONTRAST LOGO CONTAINER */
     .brand-logo-wrapper {
-      background: rgba(255, 255, 255, 0.08);
-      padding: 6px 16px;
+      background: #ffffff;
+      padding: 8px 20px;
       border-radius: 12px;
-      margin-bottom: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(4px);
+      margin-bottom: 10px;
+      border: 2px solid var(--prolet-blue);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), 0 0 10px rgba(43, 98, 168, 0.3);
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
     }
 
     .brand-logo {
-      max-height: 56px;
+      max-height: 52px;
       max-width: 240px;
+      width: auto;
+      height: auto;
       object-fit: contain;
       display: block;
-      filter: drop-shadow(0px 0px 4px rgba(255, 255, 255, 0.85));
+      filter: none;
     }
 
     h1 {
@@ -387,14 +393,14 @@
     </div>
   </div>
 
-  <!-- LINK LEADERBOARD -->
+  <!-- LINK-BASED LEADERBOARD -->
   <div class="leaderboard-card">
     <div class="leaderboard-header">
       <h3>Link Leaderboard</h3>
       <button id="share-link-btn" class="share-btn">Copy Link with Scores</button>
     </div>
     <ul id="leaderboard-list" class="leaderboard-list">
-      <li class="leaderboard-item"><span>No scores saved in link yet</span></li>
+      <li class="leaderboard-item"><span>No scores in link yet</span></li>
     </ul>
   </div>
 
@@ -671,7 +677,6 @@
       
       globalScores = [];
       if (scoresParam) {
-        // Format: Name1:Score1:Mode1|Name2:Score2:Mode2
         const entries = scoresParam.split('|');
         entries.forEach(e => {
           const [name, score, mode] = e.split(':');

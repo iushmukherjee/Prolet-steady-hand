@@ -6,7 +6,6 @@
   <title>ProLet Neural Circuit Precision Challenge - IANCON Demo</title>
   <style>
     :root {
-      /* Extracted Brand Palette from ProLet Logo */
       --prolet-blue: #2b62a8;
       --prolet-red: #ef3b42;
       --prolet-dark: #0b0c0e;
@@ -276,12 +275,11 @@
     const resultTitle = document.getElementById('result-title');
     const resultDesc = document.getElementById('result-desc');
 
-    // Audio Context Setup
     let audioCtx = null;
     let lastBuzzTime = 0;
     function playBuzzSound() {
       const now = performance.now();
-      if (now - lastBuzzTime < 100) return; // Rate limit audio buzzes
+      if (now - lastBuzzTime < 120) return;
       lastBuzzTime = now;
 
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -306,38 +304,36 @@
       }
     }
 
-    // State Variables
     let mode = 'pre';
     let isPlaying = false;
     let isTouching = false;
     let health = 100;
     let errors = 0;
     
+    let currentPos = { x: 0, y: 0 };
     let rawPos = { x: 0, y: 0 };
-    let simulatedPos = { x: 0, y: 0 };
-    const cursorRadius = 12;
+    const cursorRadius = 10;
     
-    // Waypoints for Circuit
     const waypoints = [
-      { x: 0.12, y: 0.15 },
-      { x: 0.88, y: 0.15 },
-      { x: 0.88, y: 0.50 },
-      { x: 0.12, y: 0.50 },
-      { x: 0.12, y: 0.85 },
-      { x: 0.88, y: 0.85 }
+      { x: 0.14, y: 0.15 },
+      { x: 0.86, y: 0.15 },
+      { x: 0.86, y: 0.50 },
+      { x: 0.14, y: 0.50 },
+      { x: 0.14, y: 0.85 },
+      { x: 0.86, y: 0.85 }
     ];
-    let pathWidth = 42;
+    let pathWidth = 60; // Increased base width for generous corridor space
 
     function resizeCanvas() {
       const rect = canvas.getBoundingClientRect();
       canvas.width = rect.width;
       canvas.height = rect.height;
-      pathWidth = Math.min(canvas.width, canvas.height) * 0.09;
+      // Dynamically scale path width so it is wider across screens
+      pathWidth = Math.min(canvas.width, canvas.height) * 0.13;
     }
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    // Mode Selection
     btnPre.addEventListener('click', () => {
       mode = 'pre';
       btnPre.classList.add('active-pre');
@@ -352,19 +348,18 @@
       resetGame();
     });
 
-    // Tremor Generator
-    function applyTremor(x, y) {
-      if (mode === 'post') return { x, y };
+    function applyTremor(pos) {
+      if (mode === 'post') return { ...pos };
       
       const time = performance.now() * 0.025;
-      const amplitude = 18.0;
+      const amplitude = 16.0;
       
       const offsetX = (Math.sin(time * 1.3) + Math.cos(time * 2.1)) * amplitude;
       const offsetY = (Math.cos(time * 1.7) + Math.sin(time * 2.4)) * amplitude;
 
       return {
-        x: x + offsetX,
-        y: y + offsetY
+        x: pos.x + offsetX,
+        y: pos.y + offsetY
       };
     }
 
@@ -379,7 +374,7 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const scaledWp = getScaledWaypoints();
 
-      // Outer Border
+      // Outer Border Wall
       ctx.beginPath();
       ctx.moveTo(scaledWp[0].x, scaledWp[0].y);
       for (let i = 1; i < scaledWp.length; i++) {
@@ -391,19 +386,21 @@
       ctx.strokeStyle = '#2a2d32';
       ctx.stroke();
 
-      // Inner Safe Path
+      // Inner Safe Corridor
       ctx.beginPath();
       ctx.moveTo(scaledWp[0].x, scaledWp[0].y);
       for (let i = 1; i < scaledWp.length; i++) {
         ctx.lineTo(scaledWp[i].x, scaledWp[i].y);
       }
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
       ctx.lineWidth = pathWidth;
       ctx.strokeStyle = '#101114';
       ctx.stroke();
 
       // Start Node
       ctx.beginPath();
-      ctx.arc(scaledWp[0].x, scaledWp[0].y, pathWidth / 2 + 5, 0, Math.PI * 2);
+      ctx.arc(scaledWp[0].x, scaledWp[0].y, pathWidth / 2 + 3, 0, Math.PI * 2);
       ctx.fillStyle = '#2b62a8';
       ctx.fill();
       ctx.fillStyle = '#ffffff';
@@ -415,65 +412,76 @@
       // Goal Node
       const endWp = scaledWp[scaledWp.length - 1];
       ctx.beginPath();
-      ctx.arc(endWp.x, endWp.y, pathWidth / 2 + 5, 0, Math.PI * 2);
+      ctx.arc(endWp.x, endWp.y, pathWidth / 2 + 3, 0, Math.PI * 2);
       ctx.fillStyle = '#2ed573';
       ctx.fill();
       ctx.fillStyle = '#000000';
       ctx.fillText('GOAL', endWp.x, endWp.y);
     }
 
-    // Mathematical projection to closest point on segment
-    function getClosestPointOnSegment(p, v, w) {
+    function distToSegment(p, v, w) {
       const l2 = (v.x - w.x) ** 2 + (v.y - w.y) ** 2;
-      if (l2 === 0) return { ...v, dist: Math.hypot(p.x - v.x, p.y - v.y) };
+      if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
       let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
       t = Math.max(0, Math.min(1, t));
-      const proj = {
-        x: v.x + t * (w.x - v.x),
-        y: v.y + t * (w.y - v.y)
-      };
-      proj.dist = Math.hypot(p.x - proj.x, p.y - proj.y);
-      return proj;
+      return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
     }
 
-    // Hard Boundary Barrier Enforcement & Collision Check
-    function enforceBoundariesAndCheckCollision() {
+    function isInsideCorridor(point) {
+      const scaledWp = getScaledWaypoints();
+      const maxDist = (pathWidth / 2) - cursorRadius;
+      
+      // Check distance to path segments
+      for (let i = 0; i < scaledWp.length - 1; i++) {
+        if (distToSegment(point, scaledWp[i], scaledWp[i + 1]) <= maxDist) {
+          return true;
+        }
+      }
+      
+      // Check distance to corner joints (enables smooth corner turning)
+      for (let i = 0; i < scaledWp.length; i++) {
+        if (Math.hypot(point.x - scaledWp[i].x, point.y - scaledWp[i].y) <= maxDist) {
+          return true;
+        }
+      }
+      
+      return false;
+    }
+
+    function updatePhysics() {
       if (!isPlaying || !isTouching) return;
 
-      const scaledWp = getScaledWaypoints();
-      let minProj = null;
-      let minDistance = Infinity;
+      const target = applyTremor(rawPos);
+      const steps = 15;
+      let hitWall = false;
 
-      // Find nearest segment projection
-      for (let i = 0; i < scaledWp.length - 1; i++) {
-        const proj = getClosestPointOnSegment(simulatedPos, scaledWp[i], scaledWp[i + 1]);
-        if (proj.dist < minDistance) {
-          minDistance = proj.dist;
-          minProj = proj;
+      let nextX = currentPos.x;
+      let nextY = currentPos.y;
+
+      for (let i = 1; i <= steps; i++) {
+        const testX = currentPos.x + (target.x - currentPos.x) * (i / steps);
+        const testY = currentPos.y + (target.y - currentPos.y) * (i / steps);
+
+        if (isInsideCorridor({ x: testX, y: testY })) {
+          nextX = testX;
+          nextY = testY;
+        } else {
+          hitWall = true;
+          break;
         }
       }
 
-      const maxAllowedDist = (pathWidth / 2) - cursorRadius;
+      currentPos.x = nextX;
+      currentPos.y = nextY;
 
-      // If cursor exceeds allowed corridor, clamp it to the boundary
-      if (minDistance > maxAllowedDist) {
-        // Trigger collision penalty
-        health = Math.max(0, health - 1.2);
+      if (hitWall) {
+        health = Math.max(0, health - 1.0);
         errors++;
         errorCountEl.textContent = Math.floor(errors / 3);
         healthBar.style.width = health + '%';
-        
+
         playBuzzSound();
         triggerHaptic();
-
-        // Hard clamp position to wall edge
-        if (minDistance > 0 && minProj) {
-          const dx = (simulatedPos.x - minProj.x) / minDistance;
-          const dy = (simulatedPos.y - minProj.y) / minDistance;
-
-          simulatedPos.x = minProj.x + dx * maxAllowedDist;
-          simulatedPos.y = minProj.y + dy * maxAllowedDist;
-        }
 
         if (health <= 0) {
           endGame(false);
@@ -482,8 +490,9 @@
       }
 
       // Check Win Condition
+      const scaledWp = getScaledWaypoints();
       const goal = scaledWp[scaledWp.length - 1];
-      const distToGoal = Math.hypot(simulatedPos.x - goal.x, simulatedPos.y - goal.y);
+      const distToGoal = Math.hypot(currentPos.x - goal.x, currentPos.y - goal.y);
       if (distToGoal < pathWidth / 2) {
         endGame(true);
       }
@@ -493,7 +502,7 @@
       if (!isTouching && isPlaying) return;
 
       ctx.beginPath();
-      ctx.arc(simulatedPos.x, simulatedPos.y, cursorRadius, 0, Math.PI * 2);
+      ctx.arc(currentPos.x, currentPos.y, cursorRadius, 0, Math.PI * 2);
       ctx.fillStyle = mode === 'pre' ? '#ef3b42' : '#2b62a8';
       ctx.shadowColor = mode === 'pre' ? '#ef3b42' : '#2b62a8';
       ctx.shadowBlur = 14;
@@ -504,14 +513,12 @@
     function loop() {
       drawCircuit();
       if (isPlaying && isTouching) {
-        simulatedPos = applyTremor(rawPos.x, rawPos.y);
-        enforceBoundariesAndCheckCollision();
+        updatePhysics();
         drawCursor();
       }
       requestAnimationFrame(loop);
     }
 
-    // Input Handling
     function handlePointerMove(e) {
       const rect = canvas.getBoundingClientRect();
       rawPos = {
@@ -528,6 +535,7 @@
 
       if (distToStart <= pathWidth) {
         isTouching = true;
+        currentPos = { x: startWp.x, y: startWp.y };
         rawPos = pos;
       }
     }
@@ -570,6 +578,8 @@
     startBtn.addEventListener('click', () => {
       startOverlay.classList.add('hidden');
       isPlaying = true;
+      const startWp = getScaledWaypoints()[0];
+      currentPos = { x: startWp.x, y: startWp.y };
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     });
 

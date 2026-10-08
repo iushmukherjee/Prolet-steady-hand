@@ -168,7 +168,6 @@
       font-size: 1.2rem;
     }
 
-    /* Fixed height for Desktop/PC & Responsive viewports */
     #game-container {
       position: relative;
       width: 100%;
@@ -270,7 +269,6 @@
       background: #20497e;
     }
 
-    /* Video Player Overlay */
     #video-overlay {
       position: absolute;
       inset: 0;
@@ -454,10 +452,10 @@
     
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
-      <h2 id="overlay-title">Patient Tremor Simulation</h2>
-      <p id="overlay-instructions">Experience how an Essential Tremor patient navigates the circuit. Drag from <strong>GABA</strong> to <strong>GABA Receptor</strong>.</p>
+      <h2 id="overlay-title">Doctor Experience Mode</h2>
+      <p id="overlay-instructions">Experience the physical effect of Essential Tremor. Drag from <strong style="color:var(--prolet-red)">GABA</strong> to <strong style="color:var(--accent-green)">GABA Receptor</strong>.</p>
       
-      <div class="input-group" id="name-input-container">
+      <div class="input-group hidden" id="name-input-container">
         <input type="text" id="player-name" placeholder="Enter Your Name" maxlength="15" />
       </div>
 
@@ -592,7 +590,6 @@
     let errors = 0;
     let globalScores = [];
     
-    // Timer Tracking
     let startTime = 0;
     let elapsedTime = 0;
     let isTimerRunning = false;
@@ -653,14 +650,14 @@
         nameInputContainer.classList.add('hidden');
         timeMetricBox.classList.add('hidden');
         startBtn.textContent = "Start Experience";
-        startBtn.disabled = false;
+        startBtn.disabled = false; // Always active for pre-treatment mode
       } else {
         overlayTitle.textContent = "Post-ProLet Precision Challenge";
         overlayInstructions.innerHTML = 'Enter your name to start the timed challenge. Drag from <strong style="color:var(--prolet-blue)">PROLET</strong> to <strong style="color:var(--accent-green)">GABA Receptor</strong>.';
         nameInputContainer.classList.remove('hidden');
         timeMetricBox.classList.remove('hidden');
         startBtn.textContent = "Begin Timed Challenge";
-        startBtn.disabled = playerNameInput.value.trim().length === 0;
+        startBtn.disabled = playerNameInput.value.trim().length === 0; // Requires name for post-treatment mode
       }
     }
 
@@ -742,4 +739,342 @@
       ctx.moveTo(scaledWp[0].x, scaledWp[0].y);
       for (let i = 1; i < scaledWp.length; i++) ctx.lineTo(scaledWp[i].x, scaledWp[i].y);
       ctx.lineCap = 'round';
-   
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = pathWidth + 10;
+      ctx.strokeStyle = '#2a2d32';
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(scaledWp[0].x, scaledWp[0].y);
+      for (let i = 1; i < scaledWp.length; i++) ctx.lineTo(scaledWp[i].x, scaledWp[i].y);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = pathWidth;
+      ctx.strokeStyle = '#101114';
+      ctx.stroke();
+
+      const startLabel = mode === 'pre' ? 'GABA' : 'PROLET';
+      ctx.beginPath();
+      ctx.arc(scaledWp[0].x, scaledWp[0].y, nodeRadius, 0, Math.PI * 2);
+      ctx.fillStyle = '#2b62a8';
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+
+      const fontSize = Math.max(13, Math.floor(canvas.width * 0.032));
+      drawOutlinedText(startLabel, scaledWp[0].x, scaledWp[0].y, `bold ${fontSize}px sans-serif`, '#ffffff');
+
+      const endWp = scaledWp[scaledWp.length - 1];
+      ctx.beginPath();
+      ctx.arc(endWp.x, endWp.y, nodeRadius, 0, Math.PI * 2);
+      ctx.fillStyle = '#2ed573';
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+
+      drawOutlinedText('GABA Receptor', endWp.x, endWp.y, `bold ${Math.max(11, fontSize - 2)}px sans-serif`, '#ffffff');
+    }
+
+    function distToSegment(p, v, w) {
+      const l2 = (v.x - w.x) ** 2 + (v.y - w.y) ** 2;
+      if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
+      let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+      t = Math.max(0, Math.min(1, t));
+      return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
+    }
+
+    function isInsideCorridor(point) {
+      const scaledWp = getScaledWaypoints();
+      const maxDist = (pathWidth / 2) - cursorRadius;
+      
+      for (let i = 0; i < scaledWp.length - 1; i++) {
+        if (distToSegment(point, scaledWp[i], scaledWp[i + 1]) <= maxDist) return true;
+      }
+      
+      if (Math.hypot(point.x - scaledWp[0].x, point.y - scaledWp[0].y) <= nodeRadius - cursorRadius) return true;
+      const goalWp = scaledWp[scaledWp.length - 1];
+      if (Math.hypot(point.x - goalWp.x, point.y - goalWp.y) <= nodeRadius - cursorRadius) return true;
+
+      return false;
+    }
+
+    function updatePhysics() {
+      if (!isPlaying || !isTouching) return;
+
+      if (mode === 'post' && isTimerRunning) {
+        elapsedTime = (performance.now() - startTime) / 1000;
+        timerCountEl.textContent = elapsedTime.toFixed(1) + 's';
+      }
+
+      const target = applyTremor(rawPos);
+      const steps = 15;
+      let hitWall = false;
+
+      let nextX = currentPos.x;
+      let nextY = currentPos.y;
+
+      for (let i = 1; i <= steps; i++) {
+        const testX = currentPos.x + (target.x - currentPos.x) * (i / steps);
+        const testY = currentPos.y + (target.y - currentPos.y) * (i / steps);
+
+        if (isInsideCorridor({ x: testX, y: testY })) {
+          nextX = testX;
+          nextY = testY;
+        } else {
+          hitWall = true;
+          break;
+        }
+      }
+
+      currentPos.x = nextX;
+      currentPos.y = nextY;
+
+      if (hitWall) {
+        health = Math.max(0, health - 1.2);
+        errors++;
+        errorCountEl.textContent = Math.floor(errors / 3);
+        healthBar.style.width = health + '%';
+
+        playBuzzSound();
+        triggerHaptic();
+
+        if (health <= 0) {
+          endGame(false);
+          return;
+        }
+      }
+
+      const scaledWp = getScaledWaypoints();
+      const goal = scaledWp[scaledWp.length - 1];
+      if (Math.hypot(currentPos.x - goal.x, currentPos.y - goal.y) < nodeRadius) {
+        endGame(true);
+      }
+    }
+
+    function drawCursor() {
+      if (!isTouching && isPlaying) return;
+      ctx.beginPath();
+      ctx.arc(currentPos.x, currentPos.y, cursorRadius, 0, Math.PI * 2);
+      ctx.fillStyle = mode === 'pre' ? '#ef3b42' : '#2b62a8';
+      ctx.shadowColor = mode === 'pre' ? '#ef3b42' : '#2b62a8';
+      ctx.shadowBlur = 14;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    function loop() {
+      drawCircuit();
+      if (isPlaying && isTouching) {
+        updatePhysics();
+        drawCursor();
+      }
+      requestAnimationFrame(loop);
+    }
+
+    function handlePointerMove(e) {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      rawPos = {
+        x: Math.max(0, Math.min(canvas.width, x)),
+        y: Math.max(0, Math.min(canvas.height, y))
+      };
+    }
+
+    function handlePointerDown(e) {
+      const rect = canvas.getBoundingClientRect();
+      const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const startWp = getScaledWaypoints()[0];
+
+      if (Math.hypot(pos.x - startWp.x, pos.y - startWp.y) <= nodeRadius) {
+        isTouching = true;
+        currentPos = { x: startWp.x, y: startWp.y };
+        rawPos = pos;
+
+        if (mode === 'post' && !isTimerRunning) {
+          startTime = performance.now();
+          isTimerRunning = true;
+        }
+      }
+    }
+
+    function handlePointerUp() { isTouching = false; }
+
+    canvas.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+
+    function resetGame() {
+      health = 100;
+      errors = 0;
+      isPlaying = false;
+      isTouching = false;
+      isTimerRunning = false;
+      elapsedTime = 0;
+      healthBar.style.width = '100%';
+      errorCountEl.textContent = '0';
+      timerCountEl.textContent = '0.0s';
+      endOverlay.classList.add('hidden');
+      startOverlay.classList.remove('hidden');
+    }
+
+    function loadLeaderboardFromURLAndStorage() {
+      globalScores = [];
+
+      const savedLocal = localStorage.getItem(STORAGE_KEY);
+      if (savedLocal) {
+        try {
+          globalScores = JSON.parse(savedLocal);
+        } catch (e) {
+          globalScores = [];
+        }
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      const scoresParam = params.get('scores');
+      
+      if (scoresParam) {
+        const entries = scoresParam.split('|');
+        entries.forEach(e => {
+          const [name, score, timeVal] = e.split(':');
+          if (name && score) {
+            const decodedName = decodeURIComponent(name);
+            const numericScore = parseInt(score);
+            const numericTime = timeVal ? parseFloat(timeVal) : 999.9;
+            
+            const exists = globalScores.some(s => 
+              s.name === decodedName && s.score === numericScore && s.time === numericTime
+            );
+
+            if (!exists) {
+              globalScores.push({ name: decodedName, score: numericScore, time: numericTime, mode: 'post' });
+            }
+          }
+        });
+      }
+
+      updateAndPersistScores();
+    }
+
+    function updateAndPersistScores() {
+      globalScores.sort((a, b) => {
+        if (b.score !== a.score) {
+          return b.score - a.score;
+        }
+        return (a.time || 999) - (b.time || 999);
+      });
+
+      globalScores = globalScores.slice(0, 10);
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(globalScores));
+
+      const topFive = globalScores.slice(0, 5);
+      const encodedScores = topFive.map(s => `${encodeURIComponent(s.name)}:${s.score}:${s.time.toFixed(1)}`).join('|');
+      const newUrl = `${window.location.origin}${window.location.pathname}?scores=${encodedScores}`;
+      
+      window.history.replaceState({ path: newUrl }, '', newUrl);
+
+      renderLeaderboard();
+    }
+
+    function renderLeaderboard() {
+      leaderboardList.innerHTML = '';
+
+      if (globalScores.length === 0) {
+        leaderboardList.innerHTML = '<li class="leaderboard-item"><span>No scores available</span></li>';
+        return;
+      }
+
+      globalScores.forEach((entry, idx) => {
+        const li = document.createElement('li');
+        li.className = 'leaderboard-item';
+        
+        const displayTime = entry.time ? `${entry.time.toFixed(1)}s` : 'N/A';
+
+        li.innerHTML = `
+          <span class="rank">#${idx + 1}</span>
+          <span class="name">${entry.name}</span>
+          <div class="stats-group">
+            <span class="time-tag">⏱ ${displayTime}</span>
+            <span class="score">${entry.score}%</span>
+          </div>
+        `;
+        leaderboardList.appendChild(li);
+      });
+    }
+
+    shareLinkBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(window.location.href).then(() => {
+        shareLinkBtn.textContent = 'Link Copied!';
+        setTimeout(() => { shareLinkBtn.textContent = 'Copy Link'; }, 2000);
+      });
+    });
+
+    resetScoresBtn.addEventListener('click', () => {
+      const confirmReset = confirm('Are you sure you want to clear all leaderboard scores?');
+      if (confirmReset) {
+        globalScores = [];
+        localStorage.removeItem(STORAGE_KEY);
+        const cleanUrl = `${window.location.origin}${window.location.pathname}`;
+        window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+        renderLeaderboard();
+      }
+    });
+
+    function endGame(won) {
+      isPlaying = false;
+      isTimerRunning = false;
+      endOverlay.classList.remove('hidden');
+
+      if (mode === 'post') {
+        const finalScore = Math.max(0, Math.floor(health));
+        const finalTime = parseFloat(elapsedTime.toFixed(1));
+
+        if (won) {
+          playSuccessSound();
+          resultTitle.textContent = 'Challenge Completed!';
+          resultTitle.style.color = 'var(--prolet-blue)';
+          resultDesc.textContent = `Score: ${finalScore}% Stability | Time: ${finalTime}s (${Math.floor(errors/3)} wall touches).`;
+          
+          const playerName = playerNameInput.value.trim() || 'Player';
+          globalScores.push({ name: playerName, score: finalScore, time: finalTime, mode: 'post' });
+          updateAndPersistScores();
+        } else {
+          resultTitle.textContent = 'Circuit Fault!';
+          resultTitle.style.color = 'var(--prolet-red)';
+          resultDesc.textContent = 'Stability meter depleted due to wall collisions.';
+        }
+      } else {
+        if (won) {
+          playSuccessSound();
+          resultTitle.textContent = 'Pre-Treatment Demo Finished';
+          resultTitle.style.color = 'var(--accent-green)';
+          resultDesc.textContent = `Completed with ${Math.floor(errors/3)} wall touches. Switch to Post-ProLet to try the timed challenge!`;
+        } else {
+          resultTitle.textContent = 'Tremor Disruption';
+          resultTitle.style.color = 'var(--prolet-red)';
+          resultDesc.textContent = 'Severe tremor caused repeated wall contact, demonstrating untreated Essential Tremor symptoms.';
+        }
+      }
+    }
+
+    startBtn.addEventListener('click', () => {
+      startOverlay.classList.add('hidden');
+      isPlaying = true;
+      const startWp = getScaledWaypoints()[0];
+      currentPos = { x: startWp.x, y: startWp.y };
+      initAudio();
+    });
+
+    retryBtn.addEventListener('click', resetGame);
+
+    resizeCanvas();
+    updateOverlayText();
+    loadLeaderboardFromURLAndStorage();
+    loop();
+  </script>
+</body>
+</html>

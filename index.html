@@ -217,6 +217,7 @@
     .overlay.hidden {
       display: none !important;
       pointer-events: none !important;
+      visibility: hidden !important;
     }
 
     .overlay h2 {
@@ -290,6 +291,11 @@
       justify-content: center;
       align-items: center;
       z-index: 20;
+    }
+
+    #video-overlay.hidden {
+      display: none !important;
+      pointer-events: none !important;
     }
 
     #video-overlay video {
@@ -416,6 +422,7 @@
 
     .hidden {
       display: none !important;
+      pointer-events: none !important;
     }
   </style>
 </head>
@@ -465,7 +472,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
       <h2>Trace the Circuit</h2>
-      <p id="overlay-instructions">Click/touch and drag from <strong>GABA</strong> to <strong>GABA Receptor</strong> without touching the circuit walls.</p>
+      <p id="overlay-instructions">Click and hold on <strong>GABA</strong> on PC (or touch on Mobile), then drag to <strong>GABA Receptor</strong> without touching the circuit walls.</p>
       
       <div id="input-container" class="input-group hidden">
         <input type="text" id="player-name" placeholder="Enter Your Name" maxlength="15" />
@@ -475,7 +482,7 @@
     </div>
 
     <!-- Video Overlay -->
-    <div id="video-overlay" class="hidden">
+    <div id="video-overlay" class="overlay hidden">
       <button id="skip-video-btn" class="skip-video-btn">Skip</button>
       <video id="prolet-video" src="video.mp4" playsinline></video>
     </div>
@@ -646,11 +653,11 @@
 
     function updateOverlayUI() {
       if (mode === 'pre') {
-        overlayInstructions.innerHTML = 'Click/touch and drag from <strong style="color:var(--prolet-red)">GABA</strong> to <strong style="color:var(--accent-green)">GABA Receptor</strong> without touching the circuit walls.';
+        overlayInstructions.innerHTML = 'Click and hold on <strong style="color:var(--prolet-red)">GABA</strong> (or touch on Mobile), then drag to <strong style="color:var(--accent-green)">GABA Receptor</strong> without touching circuit walls.';
         inputContainer.classList.add('hidden');
         startBtn.disabled = false;
       } else {
-        overlayInstructions.innerHTML = 'Click/touch and drag from <strong style="color:var(--prolet-blue)">PROLET</strong> to <strong style="color:var(--accent-green)">GABA Receptor</strong> without touching the circuit walls.';
+        overlayInstructions.innerHTML = 'Click and hold on <strong style="color:var(--prolet-blue)">PROLET</strong> (or touch on Mobile), then drag to <strong style="color:var(--accent-green)">GABA Receptor</strong> without touching circuit walls.';
         inputContainer.classList.remove('hidden');
         startBtn.disabled = playerNameInput.value.trim().length === 0;
       }
@@ -753,7 +760,7 @@
       const startLabel = mode === 'pre' ? 'GABA' : 'PROLET';
       ctx.beginPath();
       ctx.arc(scaledWp[0].x, scaledWp[0].y, nodeRadius, 0, Math.PI * 2);
-      ctx.fillStyle = '#2b62a8';
+      ctx.fillStyle = mode === 'pre' ? '#ef3b42' : '#2b62a8';
       ctx.fill();
       ctx.lineWidth = 3;
       ctx.strokeStyle = '#ffffff';
@@ -851,7 +858,6 @@
     }
 
     function drawCursor() {
-      if (!isTouching && isPlaying) return;
       ctx.beginPath();
       ctx.arc(currentPos.x, currentPos.y, cursorRadius, 0, Math.PI * 2);
       ctx.fillStyle = mode === 'pre' ? '#ef3b42' : '#2b62a8';
@@ -863,8 +869,10 @@
 
     function loop() {
       drawCircuit();
-      if (isPlaying && isTouching) {
-        updatePhysics();
+      if (isPlaying) {
+        if (isTouching) {
+          updatePhysics();
+        }
         drawCursor();
       }
       requestAnimationFrame(loop);
@@ -885,7 +893,8 @@
       const pos = getCanvasCoords(clientX, clientY);
       const startWp = getScaledWaypoints()[0];
 
-      if (Math.hypot(pos.x - startWp.x, pos.y - startWp.y) <= nodeRadius * 1.5) {
+      // Highly forgiving PC mouse / Mobile touch pick-up radius
+      if (Math.hypot(pos.x - startWp.x, pos.y - startWp.y) <= nodeRadius * 2.5) {
         isTouching = true;
         currentPos = { x: startWp.x, y: startWp.y };
         rawPos = pos;
@@ -906,16 +915,17 @@
       isTouching = false;
     }
 
-    // Touch & Mouse Control Attachments
+    // Touch Event Handling
     canvas.addEventListener('touchstart', (e) => {
-      if (e.cancelable) e.preventDefault();
+      if (!isPlaying) return;
       if (e.touches.length > 0) {
         handleStart(e.touches[0].clientX, e.touches[0].clientY);
+        if (isTouching && e.cancelable) e.preventDefault();
       }
     }, { passive: false });
 
     window.addEventListener('touchmove', (e) => {
-      if (isTouching) {
+      if (isPlaying && isTouching) {
         if (e.cancelable) e.preventDefault();
         if (e.touches.length > 0) {
           handleMove(e.touches[0].clientX, e.touches[0].clientY);
@@ -925,24 +935,27 @@
 
     window.addEventListener('touchend', (e) => {
       if (isTouching) {
-        if (e.cancelable) e.preventDefault();
         handleEnd();
       }
-    }, { passive: false });
+    });
 
+    // Dedicated PC Mouse Event Handling
     canvas.addEventListener('mousedown', (e) => {
+      if (!isPlaying) return;
       e.preventDefault();
       handleStart(e.clientX, e.clientY);
     });
 
     window.addEventListener('mousemove', (e) => {
-      if (isTouching) {
+      if (isPlaying && isTouching) {
         handleMove(e.clientX, e.clientY);
       }
     });
 
     window.addEventListener('mouseup', () => {
-      handleEnd();
+      if (isTouching) {
+        handleEnd();
+      }
     });
 
     function resetGame() {
@@ -1104,7 +1117,6 @@
       updateOverlayUI();
       loadLeaderboardFromURLAndStorage();
       
-      // Double frame-buffer initialization to guarantee proper layout coordinates
       requestAnimationFrame(() => {
         resizeCanvas();
         drawCircuit();

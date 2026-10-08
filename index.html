@@ -176,8 +176,7 @@
       position: relative;
       width: 100%;
       max-width: 650px;
-      height: 52vh;
-      min-height: 350px;
+      height: 420px;
       background: var(--prolet-card);
       border-radius: 12px;
       overflow: hidden;
@@ -270,7 +269,6 @@
       background: #20497e;
     }
 
-    /* Video Player Overlay */
     #video-overlay {
       position: absolute;
       inset: 0;
@@ -611,14 +609,19 @@
 
     function resizeCanvas() {
       const rect = canvas.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+
       canvas.width = rect.width;
       canvas.height = rect.height;
       
-      pathWidth = Math.max(48, Math.min(64, Math.min(canvas.width, canvas.height) * 0.14));
-      nodeRadius = Math.max(50, Math.min(68, Math.min(canvas.width, canvas.height) * 0.15));
+      pathWidth = Math.max(42, Math.min(60, Math.min(canvas.width, canvas.height) * 0.13));
+      nodeRadius = Math.max(46, Math.min(64, Math.min(canvas.width, canvas.height) * 0.14));
     }
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
+
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+      drawCircuit();
+    });
 
     playerNameInput.addEventListener('input', () => {
       if (mode === 'post') {
@@ -879,14 +882,14 @@
 
     function handleMove(clientX, clientY) {
       if (!isPlaying || !isTouching) return;
-      const pos = getCanvasCoords(clientX, clientY);
-      rawPos = pos;
+      rawPos = getCanvasCoords(clientX, clientY);
     }
 
     function handleEnd() {
       isTouching = false;
     }
 
+    /* Touch Events */
     canvas.addEventListener('touchstart', (e) => {
       if (e.cancelable) e.preventDefault();
       if (e.touches.length > 0) {
@@ -910,9 +913,20 @@
       }
     }, { passive: false });
 
-    canvas.addEventListener('mousedown', (e) => handleStart(e.clientX, e.clientY));
-    window.addEventListener('mousemove', (e) => handleMove(e.clientX, e.clientY));
-    window.addEventListener('mouseup', () => handleEnd());
+    /* Mouse Events */
+    canvas.addEventListener('mousedown', (e) => {
+      handleStart(e.clientX, e.clientY);
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (isTouching) {
+        handleMove(e.clientX, e.clientY);
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      handleEnd();
+    });
 
     function resetGame() {
       health = 100;
@@ -1068,9 +1082,12 @@
 
     retryBtn.addEventListener('click', resetGame);
 
-    updateOverlayUI();
-    loadLeaderboardFromURLAndStorage();
-    loop();
+    window.addEventListener('load', () => {
+      resizeCanvas();
+      updateOverlayUI();
+      loadLeaderboardFromURLAndStorage();
+      loop();
+    });
   </script>
 </body>
 </html>

@@ -880,11 +880,9 @@
 
     function getCanvasCoords(clientX, clientY) {
       const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
       return {
-        x: (clientX - rect.left) * scaleX,
-        y: (clientY - rect.top) * scaleY
+        x: (clientX - rect.left) * (canvas.width / rect.width),
+        y: (clientY - rect.top) * (canvas.height / rect.height)
       };
     }
 
@@ -893,8 +891,10 @@
 
       const pos = getCanvasCoords(clientX, clientY);
       const startWp = getScaledWaypoints()[0];
+      
+      const grabRadius = nodeRadius * 2.0;
 
-      if (Math.hypot(pos.x - startWp.x, pos.y - startWp.y) <= nodeRadius + 30) {
+      if (Math.hypot(pos.x - startWp.x, pos.y - startWp.y) <= grabRadius) {
         isTouching = true;
         currentPos = { x: startWp.x, y: startWp.y };
         rawPos = pos;
@@ -919,7 +919,6 @@
       isTouching = false;
     }
 
-    // Direct Mouse Handlers for Desktop PC
     canvas.addEventListener('mousedown', (e) => {
       e.preventDefault();
       handleStart(e.clientX, e.clientY);
@@ -934,7 +933,6 @@
 
     window.addEventListener('mouseup', () => handleEnd());
 
-    // Touch Handlers for Mobile / Tablet
     canvas.addEventListener('touchstart', (e) => {
       if (e.touches.length > 0) {
         handleStart(e.touches[0].clientX, e.touches[0].clientY);
@@ -1105,6 +1103,7 @@
 
     startBtn.addEventListener('click', () => {
       startOverlay.classList.add('hidden');
+      resizeCanvas();
       isPlaying = true;
       const startWp = getScaledWaypoints()[0];
       currentPos = { x: startWp.x, y: startWp.y };

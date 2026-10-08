@@ -232,11 +232,50 @@
       font-size: 1.1rem;
       cursor: pointer;
       box-shadow: 0 4px 12px rgba(43, 98, 168, 0.4);
-      transition: background 0.2s;
+      transition: all 0.2s;
     }
 
-    .btn-action:active {
+    .btn-action:disabled {
+      background: #444;
+      color: #888;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .btn-action:not(:disabled):active {
       background: #20497e;
+    }
+
+    /* Video Player Overlay */
+    #video-overlay {
+      position: absolute;
+      inset: 0;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 20;
+    }
+
+    #video-overlay video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .skip-video-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      border: 1px solid var(--prolet-card-border);
+      padding: 6px 14px;
+      border-radius: 16px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      z-index: 25;
     }
 
     .leaderboard-card {
@@ -332,11 +371,6 @@
       text-transform: uppercase;
     }
 
-    .badge-pre {
-      background: rgba(239, 59, 66, 0.2);
-      color: var(--prolet-red);
-    }
-
     .badge-post {
       background: rgba(43, 98, 168, 0.2);
       color: var(--prolet-blue);
@@ -389,6 +423,7 @@
   <div id="game-container">
     <canvas id="mazeCanvas"></canvas>
     
+    <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
       <h2>Trace the Circuit</h2>
       <p id="overlay-instructions">Touch and drag from <strong>GABA</strong> to <strong>GABA Receptor</strong> without touching the circuit walls.</p>
@@ -397,9 +432,16 @@
         <input type="text" id="player-name" placeholder="Enter Your Name" maxlength="15" />
       </div>
 
-      <button id="start-btn" class="btn-action">Begin Challenge</button>
+      <button id="start-btn" class="btn-action" disabled>Begin Challenge</button>
     </div>
 
+    <!-- Video Overlay -->
+    <div id="video-overlay" class="hidden">
+      <button id="skip-video-btn" class="skip-video-btn">Skip</button>
+      <video id="prolet-video" src="video.mp4" playsinline></video>
+    </div>
+
+    <!-- End Overlay -->
     <div id="end-overlay" class="overlay hidden">
       <h2 id="result-title">Circuit Completed!</h2>
       <p id="result-desc"></p>
@@ -409,7 +451,7 @@
 
   <div class="leaderboard-card">
     <div class="leaderboard-header">
-      <h3>Leaderboard</h3>
+      <h3>Leaderboard (Post-ProLet)</h3>
       <div class="leaderboard-actions">
         <button id="reset-scores-btn" class="reset-btn">Reset Scores</button>
         <button id="share-link-btn" class="share-btn">Copy Link</button>
@@ -439,6 +481,10 @@
     const shareLinkBtn = document.getElementById('share-link-btn');
     const resetScoresBtn = document.getElementById('reset-scores-btn');
     const overlayInstructions = document.getElementById('overlay-instructions');
+
+    const videoOverlay = document.getElementById('video-overlay');
+    const proletVideo = document.getElementById('prolet-video');
+    const skipVideoBtn = document.getElementById('skip-video-btn');
 
     const STORAGE_KEY = 'prolet_leaderboard_scores';
 
@@ -479,7 +525,6 @@
     function playSuccessSound() {
       initAudio();
 
-      // Ascending major chord notes (C5, E5, G5, C6)
       const notes = [523.25, 659.25, 783.99, 1046.50];
       const now = audioCtx.currentTime;
 
@@ -540,12 +585,45 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
+    // Player Name Validation (Enforce typing name to unlock start button)
+    playerNameInput.addEventListener('input', () => {
+      startBtn.disabled = playerNameInput.value.trim().length === 0;
+    });
+
     function updateOverlayText() {
       if (mode === 'pre') {
         overlayInstructions.innerHTML = 'Touch and drag from <strong style="color:var(--prolet-red)">GABA</strong> to <strong style="color:var(--accent-green)">GABA Receptor</strong> without touching the circuit walls.';
       } else {
         overlayInstructions.innerHTML = 'Touch and drag from <strong style="color:var(--prolet-blue)">PROLET</strong> to <strong style="color:var(--accent-green)">GABA Receptor</strong> without touching the circuit walls.';
       }
+    }
+
+    // Video Control Handler
+    function playPostProletVideo(onComplete) {
+      videoOverlay.classList.remove('hidden');
+      proletVideo.currentTime = 0;
+      proletVideo.play().catch(() => {
+        // Fallback if video fails/blocked
+        closeVideoOverlay();
+        onComplete();
+      });
+
+      function closeVideoOverlay() {
+        proletVideo.pause();
+        videoOverlay.classList.add('hidden');
+        proletVideo.onended = null;
+        skipVideoBtn.onclick = null;
+      }
+
+      proletVideo.onended = () => {
+        closeVideoOverlay();
+        onComplete();
+      };
+
+      skipVideoBtn.onclick = () => {
+        closeVideoOverlay();
+        onComplete();
+      };
     }
 
     btnPre.addEventListener('click', () => {
@@ -557,11 +635,14 @@
     });
 
     btnPost.addEventListener('click', () => {
-      mode = 'post';
       btnPost.classList.add('active-post');
       btnPre.classList.remove('active-pre');
-      updateOverlayText();
-      resetGame();
+      
+      playPostProletVideo(() => {
+        mode = 'post';
+        updateOverlayText();
+        resetGame();
+      });
     });
 
     function applyTremor(pos) {
@@ -778,17 +859,17 @@
       if (scoresParam) {
         const entries = scoresParam.split('|');
         entries.forEach(e => {
-          const [name, score, m] = e.split(':');
-          if (name && score && m) {
+          const [name, score] = e.split(':');
+          if (name && score) {
             const decodedName = decodeURIComponent(name);
             const numericScore = parseInt(score);
             
             const exists = globalScores.some(s => 
-              s.name === decodedName && s.score === numericScore && s.mode === m
+              s.name === decodedName && s.score === numericScore
             );
 
             if (!exists) {
-              globalScores.push({ name: decodedName, score: numericScore, mode: m });
+              globalScores.push({ name: decodedName, score: numericScore, mode: 'post' });
             }
           }
         });
@@ -804,7 +885,7 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(globalScores));
 
       const topFive = globalScores.slice(0, 5);
-      const encodedScores = topFive.map(s => `${encodeURIComponent(s.name)}:${s.score}:${s.mode}`).join('|');
+      const encodedScores = topFive.map(s => `${encodeURIComponent(s.name)}:${s.score}`).join('|');
       const newUrl = `${window.location.origin}${window.location.pathname}?scores=${encodedScores}`;
       
       window.history.replaceState({ path: newUrl }, '', newUrl);
@@ -823,12 +904,11 @@
       globalScores.forEach((entry, idx) => {
         const li = document.createElement('li');
         li.className = 'leaderboard-item';
-        const badgeClass = entry.mode === 'pre' ? 'badge-pre' : 'badge-post';
         
         li.innerHTML = `
           <span class="rank">#${idx + 1}</span>
           <span class="name">${entry.name}</span>
-          <span class="badge ${badgeClass}">${entry.mode}</span>
+          <span class="badge badge-post">POST-PROLET</span>
           <span class="score">${entry.score}%</span>
         `;
         leaderboardList.appendChild(li);
@@ -860,13 +940,18 @@
 
       if (won) {
         playSuccessSound();
-        resultTitle.textContent = mode === 'post' ? 'Smooth Navigation!' : 'Challenge Complete!';
+        resultTitle.textContent = mode === 'post' ? 'Smooth Navigation!' : 'Pre-Treatment Complete!';
         resultTitle.style.color = mode === 'post' ? 'var(--prolet-blue)' : 'var(--accent-green)';
         resultDesc.textContent = `Score: ${finalScore}% Stability Remaining (${Math.floor(errors/3)} wall touches).`;
         
-        const playerName = playerNameInput.value.trim() || 'Player';
-        globalScores.push({ name: playerName, score: finalScore, mode: mode });
-        updateAndPersistScores();
+        // Take scores ONLY during the Post-ProLet phase
+        if (mode === 'post') {
+          const playerName = playerNameInput.value.trim() || 'Player';
+          globalScores.push({ name: playerName, score: finalScore, mode: 'post' });
+          updateAndPersistScores();
+        } else {
+          resultDesc.textContent += ' (Pre-Treatment mode scores are not recorded).';
+        }
       } else {
         resultTitle.textContent = 'Circuit Fault!';
         resultTitle.style.color = 'var(--prolet-red)';

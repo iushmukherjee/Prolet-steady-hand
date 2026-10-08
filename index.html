@@ -732,7 +732,7 @@
       ctx.fillText(text, x, y);
     }
 
-    function drawCircuit() {
+    function drawCircuitBase() {
       ctx.fillStyle = '#18191b';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -756,7 +756,6 @@
       ctx.strokeStyle = '#101114';
       ctx.stroke();
 
-      const startLabel = mode === 'pre' ? 'GABA' : 'PROLET';
       ctx.beginPath();
       ctx.arc(scaledWp[0].x, scaledWp[0].y, nodeRadius, 0, Math.PI * 2);
       ctx.fillStyle = mode === 'pre' ? '#ef3b42' : '#2b62a8';
@@ -764,9 +763,6 @@
       ctx.lineWidth = 3;
       ctx.strokeStyle = '#ffffff';
       ctx.stroke();
-
-      const fontSize = Math.max(13, Math.floor(canvas.width * 0.032));
-      drawOutlinedText(startLabel, scaledWp[0].x, scaledWp[0].y, `bold ${fontSize}px sans-serif`, '#ffffff');
 
       const endWp = scaledWp[scaledWp.length - 1];
       ctx.beginPath();
@@ -776,7 +772,16 @@
       ctx.lineWidth = 3;
       ctx.strokeStyle = '#ffffff';
       ctx.stroke();
+    }
 
+    function drawNodeLabels() {
+      const scaledWp = getScaledWaypoints();
+      const startLabel = mode === 'pre' ? 'GABA' : 'PROLET';
+      const fontSize = Math.max(13, Math.floor(canvas.width * 0.032));
+      
+      drawOutlinedText(startLabel, scaledWp[0].x, scaledWp[0].y, `bold ${fontSize}px sans-serif`, '#ffffff');
+
+      const endWp = scaledWp[scaledWp.length - 1];
       drawOutlinedText('GABA Receptor', endWp.x, endWp.y, `bold ${Math.max(11, fontSize - 2)}px sans-serif`, '#ffffff');
     }
 
@@ -867,13 +872,14 @@
     }
 
     function loop() {
-      drawCircuit();
+      drawCircuitBase();
       if (isPlaying) {
         if (isTouching) {
           updatePhysics();
         }
         drawCursor();
       }
+      drawNodeLabels();
       requestAnimationFrame(loop);
     }
 
@@ -887,7 +893,6 @@
       };
     }
 
-    // Unified HTML5 Pointer Event System
     canvas.addEventListener('pointerdown', (e) => {
       if (!isPlaying) return;
       e.preventDefault();
@@ -1087,7 +1092,8 @@
       
       requestAnimationFrame(() => {
         resizeCanvas();
-        drawCircuit();
+        drawCircuitBase();
+        drawNodeLabels();
         requestAnimationFrame(() => {
           resizeCanvas();
           loop();
@@ -1097,7 +1103,8 @@
 
     const observer = new ResizeObserver(() => {
       resizeCanvas();
-      drawCircuit();
+      drawCircuitBase();
+      drawNodeLabels();
     });
     observer.observe(document.getElementById('game-container'));
 

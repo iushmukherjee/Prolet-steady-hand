@@ -22,6 +22,8 @@
       box-sizing: border-box;
       margin: 0;
       padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
     body {
@@ -119,7 +121,7 @@
 
     .status-bar {
       display: flex;
-      justify-space: space-between;
+      justify-content: space-between;
       align-items: center;
       width: 100%;
       max-width: 650px;
@@ -193,8 +195,7 @@
       height: 100%;
       display: block;
       touch-action: none;
-      user-select: none;
-      -webkit-user-select: none;
+      cursor: pointer;
     }
 
     .overlay {
@@ -241,6 +242,8 @@
       font-size: 1.1rem;
       text-align: center;
       outline: none;
+      user-select: text;
+      -webkit-user-select: text;
     }
 
     .input-group input:focus {
@@ -875,40 +878,26 @@
       requestAnimationFrame(loop);
     }
 
-    function handlePointerMove(e) {
-      if (!isPlaying || !isTouching) return;
+    function getCanvasCoords(clientX, clientY) {
       const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-
-      rawPos = {
-        x: Math.max(0, Math.min(canvas.width, x)),
-        y: Math.max(0, Math.min(canvas.height, y))
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
       };
     }
 
-    function handlePointerDown(e) {
+    function handleStart(clientX, clientY) {
       if (!isPlaying) return;
-      
-      // Prevent browser default text/element drag behavior on PC mouse
-      if (e.cancelable) e.preventDefault();
 
-      const rect = canvas.getBoundingClientRect();
-      const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const pos = getCanvasCoords(clientX, clientY);
       const startWp = getScaledWaypoints()[0];
 
-      // Buffer zone for clicking/touching the start circle
-      if (Math.hypot(pos.x - startWp.x, pos.y - startWp.y) <= nodeRadius + 20) {
+      if (Math.hypot(pos.x - startWp.x, pos.y - startWp.y) <= nodeRadius + 30) {
         isTouching = true;
         currentPos = { x: startWp.x, y: startWp.y };
         rawPos = pos;
-
-        // Lock pointer focus to canvas for continuous PC dragging
-        if (e.target.setPointerCapture) {
-          try {
-            e.target.setPointerCapture(e.pointerId);
-          } catch (err) {}
-        }
 
         if (mode === 'post' && !isTimerRunning) {
           startTime = performance.now();
@@ -917,22 +906,48 @@
       }
     }
 
-    function handlePointerUp(e) { 
-      isTouching = false; 
-      if (e.target && e.target.releasePointerCapture) {
-        try {
-          e.target.releasePointerCapture(e.pointerId);
-        } catch (err) {}
-      }
+    function handleMove(clientX, clientY) {
+      if (!isPlaying || !isTouching) return;
+      const pos = getCanvasCoords(clientX, clientY);
+      rawPos = {
+        x: Math.max(0, Math.min(canvas.width, pos.x)),
+        y: Math.max(0, Math.min(canvas.height, pos.y))
+      };
     }
 
-    // Attach event listeners
-    canvas.addEventListener('pointerdown', handlePointerDown);
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
+    function handleEnd() {
+      isTouching = false;
+    }
 
-    // Explicit fallback to block PC drag selections
-    canvas.addEventListener('mousedown', (e) => e.preventDefault());
+    // Direct Mouse Handlers for Desktop PC
+    canvas.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      handleStart(e.clientX, e.clientY);
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (isTouching) {
+        e.preventDefault();
+        handleMove(e.clientX, e.clientY);
+      }
+    });
+
+    window.addEventListener('mouseup', () => handleEnd());
+
+    // Touch Handlers for Mobile / Tablet
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length > 0) {
+        handleStart(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+      if (isTouching && e.touches.length > 0) {
+        handleMove(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchend', () => handleEnd());
 
     function resetGame() {
       health = 100;

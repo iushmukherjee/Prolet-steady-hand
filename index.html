@@ -191,6 +191,7 @@
       display: block;
       touch-action: none;
       user-select: none;
+      background-color: #18191b;
     }
 
     .overlay {
@@ -453,7 +454,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
       <h2>Trace the Circuit</h2>
-      <p id="overlay-instructions">Touch and drag from <strong>GABA</strong> to <strong>GABA Receptor</strong> without touching the circuit walls.</p>
+      <p id="overlay-instructions">Click/touch and drag from <strong>GABA</strong> to <strong>GABA Receptor</strong> without touching the circuit walls.</p>
       
       <div id="input-container" class="input-group hidden">
         <input type="text" id="player-name" placeholder="Enter Your Name" maxlength="15" />
@@ -608,11 +609,14 @@
     let nodeRadius = 58;
 
     function resizeCanvas() {
+      const container = document.getElementById('game-container');
       const rect = canvas.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return;
+      
+      const width = rect.width || container.clientWidth || 650;
+      const height = rect.height || container.clientHeight || 420;
 
-      canvas.width = rect.width;
-      canvas.height = rect.height;
+      canvas.width = width;
+      canvas.height = height;
       
       pathWidth = Math.max(42, Math.min(60, Math.min(canvas.width, canvas.height) * 0.13));
       nodeRadius = Math.max(46, Math.min(64, Math.min(canvas.width, canvas.height) * 0.14));
@@ -631,11 +635,11 @@
 
     function updateOverlayUI() {
       if (mode === 'pre') {
-        overlayInstructions.innerHTML = 'Touch and drag from <strong style="color:var(--prolet-red)">GABA</strong> to <strong style="color:var(--accent-green)">GABA Receptor</strong> without touching the circuit walls.';
+        overlayInstructions.innerHTML = 'Click/touch and drag from <strong style="color:var(--prolet-red)">GABA</strong> to <strong style="color:var(--accent-green)">GABA Receptor</strong> without touching the circuit walls.';
         inputContainer.classList.add('hidden');
         startBtn.disabled = false;
       } else {
-        overlayInstructions.innerHTML = 'Touch and drag from <strong style="color:var(--prolet-blue)">PROLET</strong> to <strong style="color:var(--accent-green)">GABA Receptor</strong> without touching the circuit walls.';
+        overlayInstructions.innerHTML = 'Click/touch and drag from <strong style="color:var(--prolet-blue)">PROLET</strong> to <strong style="color:var(--accent-green)">GABA Receptor</strong> without touching the circuit walls.';
         inputContainer.classList.remove('hidden');
         startBtn.disabled = playerNameInput.value.trim().length === 0;
       }
@@ -713,6 +717,10 @@
 
     function drawCircuit() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = '#18191b';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
       const scaledWp = getScaledWaypoints();
 
       ctx.beginPath();
@@ -889,7 +897,6 @@
       isTouching = false;
     }
 
-    /* Touch Events */
     canvas.addEventListener('touchstart', (e) => {
       if (e.cancelable) e.preventDefault();
       if (e.touches.length > 0) {
@@ -913,7 +920,6 @@
       }
     }, { passive: false });
 
-    /* Mouse Events */
     canvas.addEventListener('mousedown', (e) => {
       handleStart(e.clientX, e.clientY);
     });
@@ -989,7 +995,6 @@
       });
 
       globalScores = globalScores.slice(0, 10);
-
       localStorage.setItem(STORAGE_KEY, JSON.stringify(globalScores));
 
       const topFive = globalScores.slice(0, 5);
@@ -997,7 +1002,6 @@
       const newUrl = `${window.location.origin}${window.location.pathname}?scores=${encodedScores}`;
       
       window.history.replaceState({ path: newUrl }, '', newUrl);
-
       renderLeaderboard();
     }
 
@@ -1082,12 +1086,19 @@
 
     retryBtn.addEventListener('click', resetGame);
 
-    window.addEventListener('load', () => {
+    function init() {
       resizeCanvas();
       updateOverlayUI();
       loadLeaderboardFromURLAndStorage();
+      drawCircuit();
       loop();
-    });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
   </script>
 </body>
 </html>

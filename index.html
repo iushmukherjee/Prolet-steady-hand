@@ -69,7 +69,6 @@
       height: auto;
       object-fit: contain;
       display: block;
-      filter: none;
     }
 
     h1 {
@@ -888,14 +887,17 @@
       };
     }
 
-    function handleStart(clientX, clientY) {
+    // Unified HTML5 Pointer Event System
+    canvas.addEventListener('pointerdown', (e) => {
       if (!isPlaying) return;
-      const pos = getCanvasCoords(clientX, clientY);
+      e.preventDefault();
+      
+      const pos = getCanvasCoords(e.clientX, e.clientY);
       const startWp = getScaledWaypoints()[0];
 
-      // Highly forgiving PC mouse / Mobile touch pick-up radius
       if (Math.hypot(pos.x - startWp.x, pos.y - startWp.y) <= nodeRadius * 2.5) {
         isTouching = true;
+        canvas.setPointerCapture(e.pointerId);
         currentPos = { x: startWp.x, y: startWp.y };
         rawPos = pos;
 
@@ -904,59 +906,25 @@
           isTimerRunning = true;
         }
       }
-    }
+    });
 
-    function handleMove(clientX, clientY) {
+    canvas.addEventListener('pointermove', (e) => {
       if (!isPlaying || !isTouching) return;
-      rawPos = getCanvasCoords(clientX, clientY);
-    }
-
-    function handleEnd() {
-      isTouching = false;
-    }
-
-    // Touch Event Handling
-    canvas.addEventListener('touchstart', (e) => {
-      if (!isPlaying) return;
-      if (e.touches.length > 0) {
-        handleStart(e.touches[0].clientX, e.touches[0].clientY);
-        if (isTouching && e.cancelable) e.preventDefault();
-      }
-    }, { passive: false });
-
-    window.addEventListener('touchmove', (e) => {
-      if (isPlaying && isTouching) {
-        if (e.cancelable) e.preventDefault();
-        if (e.touches.length > 0) {
-          handleMove(e.touches[0].clientX, e.touches[0].clientY);
-        }
-      }
-    }, { passive: false });
-
-    window.addEventListener('touchend', (e) => {
-      if (isTouching) {
-        handleEnd();
-      }
-    });
-
-    // Dedicated PC Mouse Event Handling
-    canvas.addEventListener('mousedown', (e) => {
-      if (!isPlaying) return;
       e.preventDefault();
-      handleStart(e.clientX, e.clientY);
+      rawPos = getCanvasCoords(e.clientX, e.clientY);
     });
 
-    window.addEventListener('mousemove', (e) => {
-      if (isPlaying && isTouching) {
-        handleMove(e.clientX, e.clientY);
-      }
-    });
-
-    window.addEventListener('mouseup', () => {
+    function handlePointerUp(e) {
       if (isTouching) {
-        handleEnd();
+        isTouching = false;
+        try {
+          canvas.releasePointerCapture(e.pointerId);
+        } catch (err) {}
       }
-    });
+    }
+
+    canvas.addEventListener('pointerup', handlePointerUp);
+    canvas.addEventListener('pointercancel', handlePointerUp);
 
     function resetGame() {
       health = 100;

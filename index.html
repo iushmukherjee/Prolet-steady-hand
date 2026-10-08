@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>ProLet Neural Circuit Precision Challenge - IANCON Demo</title>
   
   <style>
@@ -22,6 +22,9 @@
       box-sizing: border-box;
       margin: 0;
       padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
     }
 
     body {
@@ -35,6 +38,7 @@
       padding: 12px 16px 32px 16px;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
+      touch-action: manipulation;
     }
 
     header {
@@ -179,6 +183,7 @@
       overflow: hidden;
       border: 1px solid var(--prolet-card-border);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+      touch-action: none;
     }
 
     canvas {
@@ -233,6 +238,8 @@
       font-size: 1.1rem;
       text-align: center;
       outline: none;
+      user-select: text;
+      -webkit-user-select: text;
     }
 
     .input-group input:focus {
@@ -450,11 +457,11 @@
       <h2>Trace the Circuit</h2>
       <p id="overlay-instructions">Touch and drag from <strong>GABA</strong> to <strong>GABA Receptor</strong> without touching the circuit walls.</p>
       
-      <div class="input-group">
+      <div id="input-container" class="input-group hidden">
         <input type="text" id="player-name" placeholder="Enter Your Name" maxlength="15" />
       </div>
 
-      <button id="start-btn" class="btn-action" disabled>Begin Challenge</button>
+      <button id="start-btn" class="btn-action">Begin Challenge</button>
     </div>
 
     <!-- Video Overlay -->
@@ -500,6 +507,7 @@
     const resultTitle = document.getElementById('result-title');
     const resultDesc = document.getElementById('result-desc');
     const playerNameInput = document.getElementById('player-name');
+    const inputContainer = document.getElementById('input-container');
     const leaderboardList = document.getElementById('leaderboard-list');
     const shareLinkBtn = document.getElementById('share-link-btn');
     const resetScoresBtn = document.getElementById('reset-scores-btn');
@@ -581,7 +589,6 @@
     let errors = 0;
     let globalScores = [];
     
-    // Timer Tracking
     let startTime = 0;
     let elapsedTime = 0;
     let isTimerRunning = false;
@@ -614,14 +621,20 @@
     resizeCanvas();
 
     playerNameInput.addEventListener('input', () => {
-      startBtn.disabled = playerNameInput.value.trim().length === 0;
+      if (mode === 'post') {
+        startBtn.disabled = playerNameInput.value.trim().length === 0;
+      }
     });
 
-    function updateOverlayText() {
+    function updateOverlayUI() {
       if (mode === 'pre') {
         overlayInstructions.innerHTML = 'Touch and drag from <strong style="color:var(--prolet-red)">GABA</strong> to <strong style="color:var(--accent-green)">GABA Receptor</strong> without touching the circuit walls.';
+        inputContainer.classList.add('hidden');
+        startBtn.disabled = false;
       } else {
         overlayInstructions.innerHTML = 'Touch and drag from <strong style="color:var(--prolet-blue)">PROLET</strong> to <strong style="color:var(--accent-green)">GABA Receptor</strong> without touching the circuit walls.';
+        inputContainer.classList.remove('hidden');
+        startBtn.disabled = playerNameInput.value.trim().length === 0;
       }
     }
 
@@ -655,7 +668,7 @@
       mode = 'pre';
       btnPre.classList.add('active-pre');
       btnPost.classList.remove('active-post');
-      updateOverlayText();
+      updateOverlayUI();
       resetGame();
     });
 
@@ -665,7 +678,7 @@
       
       playPostProletVideo(() => {
         mode = 'post';
-        updateOverlayText();
+        updateOverlayUI();
         resetGame();
       });
     });
@@ -767,7 +780,6 @@
     function updatePhysics() {
       if (!isPlaying || !isTouching) return;
 
-      // Update Timer
       if (isTimerRunning) {
         elapsedTime = (performance.now() - startTime) / 1000;
         timerCountEl.textContent = elapsedTime.toFixed(1) + 's';
@@ -838,14 +850,19 @@
       requestAnimationFrame(loop);
     }
 
-    function handlePointerMove(e) {
+    function getCanvasCoords(clientX, clientY) {
       const rect = canvas.getBoundingClientRect();
-      rawPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
+      };
     }
 
-    function handlePointerDown(e) {
-      const rect = canvas.getBoundingClientRect();
-      const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    function handleStart(clientX, clientY) {
+      if (!isPlaying) return;
+      const pos = getCanvasCoords(clientX, clientY);
       const startWp = getScaledWaypoints()[0];
 
       if (Math.hypot(pos.x - startWp.x, pos.y - startWp.y) <= nodeRadius) {
@@ -853,7 +870,6 @@
         currentPos = { x: startWp.x, y: startWp.y };
         rawPos = pos;
 
-        // Start timer precisely when dragging from start node
         if (!isTimerRunning) {
           startTime = performance.now();
           isTimerRunning = true;
@@ -861,11 +877,42 @@
       }
     }
 
-    function handlePointerUp() { isTouching = false; }
+    function handleMove(clientX, clientY) {
+      if (!isPlaying || !isTouching) return;
+      const pos = getCanvasCoords(clientX, clientY);
+      rawPos = pos;
+    }
 
-    canvas.addEventListener('pointerdown', handlePointerDown);
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
+    function handleEnd() {
+      isTouching = false;
+    }
+
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.cancelable) e.preventDefault();
+      if (e.touches.length > 0) {
+        handleStart(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: false });
+
+    window.addEventListener('touchmove', (e) => {
+      if (isTouching) {
+        if (e.cancelable) e.preventDefault();
+        if (e.touches.length > 0) {
+          handleMove(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      }
+    }, { passive: false });
+
+    window.addEventListener('touchend', (e) => {
+      if (isTouching) {
+        if (e.cancelable) e.preventDefault();
+        handleEnd();
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('mousedown', (e) => handleStart(e.clientX, e.clientY));
+    window.addEventListener('mousemove', (e) => handleMove(e.clientX, e.clientY));
+    window.addEventListener('mouseup', () => handleEnd());
 
     function resetGame() {
       health = 100;
@@ -920,8 +967,6 @@
     }
 
     function updateAndPersistScores() {
-      // Primary Sort: Higher Score
-      // Secondary Sort (Tie-Breaker): Lower Completion Time
       globalScores.sort((a, b) => {
         if (b.score !== a.score) {
           return b.score - a.score;
@@ -999,13 +1044,12 @@
         resultTitle.style.color = mode === 'post' ? 'var(--prolet-blue)' : 'var(--accent-green)';
         resultDesc.textContent = `Score: ${finalScore}% Stability | Time: ${finalTime}s (${Math.floor(errors/3)} wall touches).`;
         
-        // Take scores ONLY during Post-ProLet phase
         if (mode === 'post') {
           const playerName = playerNameInput.value.trim() || 'Player';
           globalScores.push({ name: playerName, score: finalScore, time: finalTime, mode: 'post' });
           updateAndPersistScores();
         } else {
-          resultDesc.textContent += ' (Pre-Treatment mode scores are not recorded).';
+          resultDesc.textContent += ' (Pre-Treatment runs are unrecorded).';
         }
       } else {
         resultTitle.textContent = 'Circuit Fault!';
@@ -1024,7 +1068,7 @@
 
     retryBtn.addEventListener('click', resetGame);
 
-    updateOverlayText();
+    updateOverlayUI();
     loadLeaderboardFromURLAndStorage();
     loop();
   </script>

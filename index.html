@@ -131,7 +131,7 @@
     }
 
     .health-container {
-      width: 60%;
+      width: 50%;
       background: #000;
       height: 22px;
       border-radius: 8px;
@@ -147,8 +147,25 @@
     }
 
     .metrics {
+      display: flex;
+      gap: 16px;
       font-size: 0.95rem;
       font-weight: bold;
+    }
+
+    .metric-box {
+      text-align: center;
+    }
+
+    .metric-box span.label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      display: block;
+      font-weight: bold;
+    }
+
+    .metric-box span.val {
+      font-size: 1.2rem;
     }
 
     #game-container {
@@ -362,18 +379,16 @@
       padding-right: 8px;
     }
 
-    .leaderboard-item .badge {
-      font-size: 0.75rem;
-      padding: 3px 8px;
-      border-radius: 4px;
-      margin-right: 8px;
-      font-weight: bold;
-      text-transform: uppercase;
+    .leaderboard-item .stats-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
-    .badge-post {
-      background: rgba(43, 98, 168, 0.2);
-      color: var(--prolet-blue);
+    .leaderboard-item .time-tag {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-family: monospace;
     }
 
     .leaderboard-item .score {
@@ -403,20 +418,27 @@
   </header>
 
   <div class="controls-panel">
-    <button id="btn-pre" class="mode-btn active-pre">Pre-Treatment</button>
-    <button id="btn-post" class="mode-btn">Post-ProLet</button>
+    <button id="btn-pre" class="mode-btn active-pre">Pre-Treatment Experience</button>
+    <button id="btn-post" class="mode-btn">Post-ProLet Challenge</button>
   </div>
 
   <div class="status-bar">
-    <div>
-      <span style="font-size: 0.85rem; color: var(--text-muted); display: block; font-weight: bold;">STABILITY</span>
-      <div class="health-container">
+    <div style="width: 45%;">
+      <span style="font-size: 0.75rem; color: var(--text-muted); display: block; font-weight: bold; margin-bottom: 2px;">STABILITY</span>
+      <div class="health-container" style="width: 100%;">
         <div id="health-bar" class="health-bar"></div>
       </div>
     </div>
+    
     <div class="metrics">
-      <span style="font-size: 0.85rem; color: var(--text-muted); display: block; text-align: right;">ERRORS</span>
-      <span id="error-count" style="color: var(--prolet-red); font-size: 1.3rem;">0</span>
+      <div class="metric-box" id="time-metric-box">
+        <span class="label">TIME</span>
+        <span id="timer-count" class="val" style="color: #fff; font-family: monospace;">0.0s</span>
+      </div>
+      <div class="metric-box">
+        <span class="label">ERRORS</span>
+        <span id="error-count" class="val" style="color: var(--prolet-red);">0</span>
+      </div>
     </div>
   </div>
 
@@ -425,14 +447,14 @@
     
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
-      <h2>Trace the Circuit</h2>
-      <p id="overlay-instructions">Touch and drag from <strong>GABA</strong> to <strong>GABA Receptor</strong> without touching the circuit walls.</p>
+      <h2 id="overlay-title">Patient Tremor Simulation</h2>
+      <p id="overlay-instructions">Experience how an Essential Tremor patient navigates the circuit. Drag from <strong>GABA</strong> to <strong>GABA Receptor</strong>.</p>
       
-      <div class="input-group">
+      <div class="input-group" id="name-input-container">
         <input type="text" id="player-name" placeholder="Enter Your Name" maxlength="15" />
       </div>
 
-      <button id="start-btn" class="btn-action" disabled>Begin Challenge</button>
+      <button id="start-btn" class="btn-action">Start Experience</button>
     </div>
 
     <!-- Video Overlay -->
@@ -451,7 +473,7 @@
 
   <div class="leaderboard-card">
     <div class="leaderboard-header">
-      <h3>Leaderboard (Post-ProLet)</h3>
+      <h3>Post-ProLet Leaderboard</h3>
       <div class="leaderboard-actions">
         <button id="reset-scores-btn" class="reset-btn">Reset Scores</button>
         <button id="share-link-btn" class="share-btn">Copy Link</button>
@@ -470,16 +492,20 @@
     const btnPost = document.getElementById('btn-post');
     const healthBar = document.getElementById('health-bar');
     const errorCountEl = document.getElementById('error-count');
+    const timerCountEl = document.getElementById('timer-count');
+    const timeMetricBox = document.getElementById('time-metric-box');
     const startOverlay = document.getElementById('start-overlay');
     const endOverlay = document.getElementById('end-overlay');
     const startBtn = document.getElementById('start-btn');
     const retryBtn = document.getElementById('retry-btn');
     const resultTitle = document.getElementById('result-title');
     const resultDesc = document.getElementById('result-desc');
+    const nameInputContainer = document.getElementById('name-input-container');
     const playerNameInput = document.getElementById('player-name');
     const leaderboardList = document.getElementById('leaderboard-list');
     const shareLinkBtn = document.getElementById('share-link-btn');
     const resetScoresBtn = document.getElementById('reset-scores-btn');
+    const overlayTitle = document.getElementById('overlay-title');
     const overlayInstructions = document.getElementById('overlay-instructions');
 
     const videoOverlay = document.getElementById('video-overlay');
@@ -558,6 +584,11 @@
     let errors = 0;
     let globalScores = [];
     
+    // Timer Tracking
+    let startTime = 0;
+    let elapsedTime = 0;
+    let isTimerRunning = false;
+
     let currentPos = { x: 0, y: 0 };
     let rawPos = { x: 0, y: 0 };
     const cursorRadius = 10;
@@ -585,25 +616,35 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    // Player Name Validation (Enforce typing name to unlock start button)
+    // Name input validation ONLY applies to Post-ProLet mode
     playerNameInput.addEventListener('input', () => {
-      startBtn.disabled = playerNameInput.value.trim().length === 0;
+      if (mode === 'post') {
+        startBtn.disabled = playerNameInput.value.trim().length === 0;
+      }
     });
 
     function updateOverlayText() {
       if (mode === 'pre') {
-        overlayInstructions.innerHTML = 'Touch and drag from <strong style="color:var(--prolet-red)">GABA</strong> to <strong style="color:var(--accent-green)">GABA Receptor</strong> without touching the circuit walls.';
+        overlayTitle.textContent = "Doctor Experience Mode";
+        overlayInstructions.innerHTML = 'Experience the physical effect of Essential Tremor. Drag from <strong style="color:var(--prolet-red)">GABA</strong> to <strong style="color:var(--accent-green)">GABA Receptor</strong>.';
+        nameInputContainer.classList.add('hidden');
+        timeMetricBox.classList.add('hidden');
+        startBtn.textContent = "Start Experience";
+        startBtn.disabled = false;
       } else {
-        overlayInstructions.innerHTML = 'Touch and drag from <strong style="color:var(--prolet-blue)">PROLET</strong> to <strong style="color:var(--accent-green)">GABA Receptor</strong> without touching the circuit walls.';
+        overlayTitle.textContent = "Post-ProLet Precision Challenge";
+        overlayInstructions.innerHTML = 'Enter your name to start the timed challenge. Drag from <strong style="color:var(--prolet-blue)">PROLET</strong> to <strong style="color:var(--accent-green)">GABA Receptor</strong>.';
+        nameInputContainer.classList.remove('hidden');
+        timeMetricBox.classList.remove('hidden');
+        startBtn.textContent = "Begin Timed Challenge";
+        startBtn.disabled = playerNameInput.value.trim().length === 0;
       }
     }
 
-    // Video Control Handler
     function playPostProletVideo(onComplete) {
       videoOverlay.classList.remove('hidden');
       proletVideo.currentTime = 0;
       proletVideo.play().catch(() => {
-        // Fallback if video fails/blocked
         closeVideoOverlay();
         onComplete();
       });
@@ -742,6 +783,12 @@
     function updatePhysics() {
       if (!isPlaying || !isTouching) return;
 
+      // Timer only runs for Post-ProLet
+      if (mode === 'post' && isTimerRunning) {
+        elapsedTime = (performance.now() - startTime) / 1000;
+        timerCountEl.textContent = elapsedTime.toFixed(1) + 's';
+      }
+
       const target = applyTremor(rawPos);
       const steps = 15;
       let hitWall = false;
@@ -821,6 +868,12 @@
         isTouching = true;
         currentPos = { x: startWp.x, y: startWp.y };
         rawPos = pos;
+
+        // Timer starts ONLY when dragging in Post-ProLet mode
+        if (mode === 'post' && !isTimerRunning) {
+          startTime = performance.now();
+          isTimerRunning = true;
+        }
       }
     }
 
@@ -835,8 +888,11 @@
       errors = 0;
       isPlaying = false;
       isTouching = false;
+      isTimerRunning = false;
+      elapsedTime = 0;
       healthBar.style.width = '100%';
       errorCountEl.textContent = '0';
+      timerCountEl.textContent = '0.0s';
       endOverlay.classList.add('hidden');
       startOverlay.classList.remove('hidden');
     }
@@ -859,17 +915,18 @@
       if (scoresParam) {
         const entries = scoresParam.split('|');
         entries.forEach(e => {
-          const [name, score] = e.split(':');
+          const [name, score, timeVal] = e.split(':');
           if (name && score) {
             const decodedName = decodeURIComponent(name);
             const numericScore = parseInt(score);
+            const numericTime = timeVal ? parseFloat(timeVal) : 999.9;
             
             const exists = globalScores.some(s => 
-              s.name === decodedName && s.score === numericScore
+              s.name === decodedName && s.score === numericScore && s.time === numericTime
             );
 
             if (!exists) {
-              globalScores.push({ name: decodedName, score: numericScore, mode: 'post' });
+              globalScores.push({ name: decodedName, score: numericScore, time: numericTime, mode: 'post' });
             }
           }
         });
@@ -879,13 +936,19 @@
     }
 
     function updateAndPersistScores() {
-      globalScores.sort((a, b) => b.score - a.score);
+      globalScores.sort((a, b) => {
+        if (b.score !== a.score) {
+          return b.score - a.score;
+        }
+        return (a.time || 999) - (b.time || 999);
+      });
+
       globalScores = globalScores.slice(0, 10);
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(globalScores));
 
       const topFive = globalScores.slice(0, 5);
-      const encodedScores = topFive.map(s => `${encodeURIComponent(s.name)}:${s.score}`).join('|');
+      const encodedScores = topFive.map(s => `${encodeURIComponent(s.name)}:${s.score}:${s.time.toFixed(1)}`).join('|');
       const newUrl = `${window.location.origin}${window.location.pathname}?scores=${encodedScores}`;
       
       window.history.replaceState({ path: newUrl }, '', newUrl);
@@ -905,11 +968,15 @@
         const li = document.createElement('li');
         li.className = 'leaderboard-item';
         
+        const displayTime = entry.time ? `${entry.time.toFixed(1)}s` : 'N/A';
+
         li.innerHTML = `
           <span class="rank">#${idx + 1}</span>
           <span class="name">${entry.name}</span>
-          <span class="badge badge-post">POST-PROLET</span>
-          <span class="score">${entry.score}%</span>
+          <div class="stats-group">
+            <span class="time-tag">⏱ ${displayTime}</span>
+            <span class="score">${entry.score}%</span>
+          </div>
         `;
         leaderboardList.appendChild(li);
       });
@@ -935,27 +1002,40 @@
 
     function endGame(won) {
       isPlaying = false;
+      isTimerRunning = false;
       endOverlay.classList.remove('hidden');
-      const finalScore = Math.max(0, Math.floor(health));
 
-      if (won) {
-        playSuccessSound();
-        resultTitle.textContent = mode === 'post' ? 'Smooth Navigation!' : 'Pre-Treatment Complete!';
-        resultTitle.style.color = mode === 'post' ? 'var(--prolet-blue)' : 'var(--accent-green)';
-        resultDesc.textContent = `Score: ${finalScore}% Stability Remaining (${Math.floor(errors/3)} wall touches).`;
-        
-        // Take scores ONLY during the Post-ProLet phase
-        if (mode === 'post') {
+      if (mode === 'post') {
+        // --- POST-PROLET PHASE (Score & Time Recorded) ---
+        const finalScore = Math.max(0, Math.floor(health));
+        const finalTime = parseFloat(elapsedTime.toFixed(1));
+
+        if (won) {
+          playSuccessSound();
+          resultTitle.textContent = 'Challenge Completed!';
+          resultTitle.style.color = 'var(--prolet-blue)';
+          resultDesc.textContent = `Score: ${finalScore}% Stability | Time: ${finalTime}s (${Math.floor(errors/3)} wall touches).`;
+          
           const playerName = playerNameInput.value.trim() || 'Player';
-          globalScores.push({ name: playerName, score: finalScore, mode: 'post' });
+          globalScores.push({ name: playerName, score: finalScore, time: finalTime, mode: 'post' });
           updateAndPersistScores();
         } else {
-          resultDesc.textContent += ' (Pre-Treatment mode scores are not recorded).';
+          resultTitle.textContent = 'Circuit Fault!';
+          resultTitle.style.color = 'var(--prolet-red)';
+          resultDesc.textContent = 'Stability meter depleted due to wall collisions.';
         }
       } else {
-        resultTitle.textContent = 'Circuit Fault!';
-        resultTitle.style.color = 'var(--prolet-red)';
-        resultDesc.textContent = 'Excessive tremor caused repeated wall collisions, completely depleting stability meter.';
+        // --- PRE-TREATMENT PHASE (Experience Only, No Scores/Times Taken) ---
+        if (won) {
+          playSuccessSound();
+          resultTitle.textContent = 'Pre-Treatment Demo Finished';
+          resultTitle.style.color = 'var(--accent-green)';
+          resultDesc.textContent = `Completed with ${Math.floor(errors/3)} wall touches. Switch to Post-ProLet to try the timed challenge!`;
+        } else {
+          resultTitle.textContent = 'Tremor Disruption';
+          resultTitle.style.color = 'var(--prolet-red)';
+          resultDesc.textContent = 'Severe tremor caused repeated wall contact, demonstrating untreated Essential Tremor symptoms.';
+        }
       }
     }
 

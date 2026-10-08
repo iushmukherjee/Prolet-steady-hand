@@ -613,21 +613,36 @@
     let pathWidth = 52;
     let nodeRadius = 58;
 
-    function resizeCanvas() {
-      const rect = gameContainer.getBoundingClientRect();
-      const w = Math.floor(rect.width);
-      const h = Math.floor(rect.height);
+        function resizeCanvas() {
+      // Use clientWidth/clientHeight for reliable pixel dimensions across PC & Mobile
+      const w = gameContainer.clientWidth;
+      const h = gameContainer.clientHeight;
+      const dpr = window.devicePixelRatio || 1;
       
       if (w > 0 && h > 0) {
-        canvas.width = w;
-        canvas.height = h;
+        // Set physical buffer size taking high-DPI (Retina/4K) into account
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+        
+        // Scale drawing context so logical pixel coordinates match CSS pixels
+        ctx.scale(dpr, dpr);
+        
         pathWidth = Math.max(44, Math.min(64, Math.min(w, h) * 0.14));
         nodeRadius = Math.max(48, Math.min(68, Math.min(w, h) * 0.15));
+
+        // Re-render immediately on resize
+        if (typeof drawCircuit === 'function') {
+          drawCircuit();
+        }
       }
     }
 
-    window.addEventListener('resize', resizeCanvas);
-    setTimeout(resizeCanvas, 50);
+    // ResizeObserver guarantees execution as soon as PC DOM layout calculations finalize
+    const layoutObserver = new ResizeObserver(() => {
+      resizeCanvas();
+    });
+    layoutObserver.observe(gameContainer);
+
 
     playerNameInput.addEventListener('input', () => {
       if (mode === 'post') {

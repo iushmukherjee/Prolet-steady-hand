@@ -50,18 +50,6 @@
       width: 100%;
     }
 
-    .brand-logo-wrapper {
-      background: #ffffff;
-      padding: 8px 20px;
-      border-radius: 12px;
-      margin-bottom: 10px;
-      border: 2px solid var(--prolet-blue);
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), 0 0 10px rgba(43, 98, 168, 0.3);
-      display: inline-flex;
-      justify-content: center;
-      align-items: center;
-    }
-
     .brand-logo {
       max-height: 52px;
       max-width: 240px;
@@ -69,6 +57,7 @@
       height: auto;
       object-fit: contain;
       display: block;
+      margin-bottom: 10px;
     }
 
     h1 {
@@ -421,14 +410,7 @@
 <body>
 
   <header>
-    <div class="brand-logo-wrapper">
-      <img 
-        src="logo.png" 
-        alt="ProLet Logo" 
-        class="brand-logo"
-        onerror="this.parentElement.style.display='none';"
-      />
-    </div>
+    <img src="logo.png" alt="ProLet Logo" class="brand-logo" />
     <h1>Neural Circuit Challenge</h1>
     <p class="subtitle">Essential Tremor Simulation & Assessment Demo</p>
   </header>
@@ -648,7 +630,6 @@
       } else {
         overlayInstructions.innerHTML = 'Click and hold on <strong style="color:var(--prolet-blue)">PROLET</strong>, then navigate the complex path to <strong style="color:var(--accent-green)">GABA Receptor</strong>.';
         inputContainer.classList.remove('hidden');
-        // Require name input ONLY for Post-ProLet mode
         startBtn.disabled = playerNameInput.value.trim().length === 0;
       }
     }
@@ -890,7 +871,6 @@
       };
     }
 
-    // Chrome & PC Compatible Unified Mouse/Touch Drag Handlers
     function handleDragStart(clientX, clientY) {
       if (!isPlaying) return;
       const pos = getCanvasCoords(clientX, clientY);

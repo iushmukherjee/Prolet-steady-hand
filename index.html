@@ -471,7 +471,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
       <h2>Trace the Complex Circuit</h2>
-      <p id="overlay-instructions">Click and hold anywhere on the circuit, then navigate to <strong>GABA Receptor</strong> without touching the circuit walls.</p>
+      <p id="overlay-instructions">Click and hold on <strong>GABA</strong> (or touch on Mobile), then navigate the complex path to <strong>GABA Receptor</strong>.</p>
       
       <div id="input-container" class="input-group hidden">
         <input type="text" id="player-name" placeholder="Enter Your Name" maxlength="15" />
@@ -896,41 +896,45 @@
       };
     }
 
-    // Direct Drag Pick-Up Event Handlers
-    function startDrag(e) {
+    // Precise Start Node Grab Handlers
+    canvas.addEventListener('pointerdown', (e) => {
       if (!isPlaying) return;
       e.preventDefault();
 
       const pos = getCanvasCoords(e.clientX, e.clientY);
-      isTouching = true;
-      rawPos = pos;
-      currentPos = { ...pos };
+      const startWp = getScaledWaypoints()[0];
 
-      if (!isTimerRunning) {
-        startTime = performance.now();
-        isTimerRunning = true;
+      // Must click/touch within the start node circle (+2.5x tolerance)
+      if (Math.hypot(pos.x - startWp.x, pos.y - startWp.y) <= nodeRadius * 2.5) {
+        isTouching = true;
+        canvas.setPointerCapture(e.pointerId);
+        currentPos = { x: startWp.x, y: startWp.y };
+        rawPos = pos;
+
+        if (!isTimerRunning) {
+          startTime = performance.now();
+          isTimerRunning = true;
+        }
       }
-    }
+    });
 
-    function moveDrag(e) {
+    canvas.addEventListener('pointermove', (e) => {
       if (!isPlaying || !isTouching) return;
       e.preventDefault();
       rawPos = getCanvasCoords(e.clientX, e.clientY);
-    }
+    });
 
-    function stopDrag(e) {
+    function handlePointerUp(e) {
       if (isTouching) {
         isTouching = false;
+        try {
+          canvas.releasePointerCapture(e.pointerId);
+        } catch (err) {}
       }
     }
 
-    // Canvas Pointer Down Initiation
-    canvas.addEventListener('pointerdown', startDrag);
-    
-    // Window-level Tracking so cursor never gets stuck or lost
-    window.addEventListener('pointermove', moveDrag);
-    window.addEventListener('pointerup', stopDrag);
-    window.addEventListener('pointercancel', stopDrag);
+    canvas.addEventListener('pointerup', handlePointerUp);
+    canvas.addEventListener('pointercancel', handlePointerUp);
 
     function resetGame() {
       health = 100;

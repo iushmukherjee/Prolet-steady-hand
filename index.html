@@ -640,12 +640,6 @@
       drawNodeLabels();
     });
 
-    playerNameInput.addEventListener('input', () => {
-      if (mode === 'post') {
-        startBtn.disabled = playerNameInput.value.trim().length === 0;
-      }
-    });
-
     function updateOverlayUI() {
       if (mode === 'pre') {
         overlayInstructions.innerHTML = 'Click and hold on <strong style="color:var(--prolet-red)">GABA</strong>, then navigate the complex path to <strong style="color:var(--accent-green)">GABA Receptor</strong>.';
@@ -654,9 +648,16 @@
       } else {
         overlayInstructions.innerHTML = 'Click and hold on <strong style="color:var(--prolet-blue)">PROLET</strong>, then navigate the complex path to <strong style="color:var(--accent-green)">GABA Receptor</strong>.';
         inputContainer.classList.remove('hidden');
+        // Require name input ONLY for Post-ProLet mode
         startBtn.disabled = playerNameInput.value.trim().length === 0;
       }
     }
+
+    playerNameInput.addEventListener('input', () => {
+      if (mode === 'post') {
+        startBtn.disabled = playerNameInput.value.trim().length === 0;
+      }
+    });
 
     function playPostProletVideo(onComplete) {
       videoOverlay.classList.remove('hidden');
@@ -889,7 +890,7 @@
       };
     }
 
-    // Chrome-Compatible Dual Input Handlers (Pointer + Mouse Events)
+    // Chrome & PC Compatible Unified Mouse/Touch Drag Handlers
     function handleDragStart(clientX, clientY) {
       if (!isPlaying) return;
       const pos = getCanvasCoords(clientX, clientY);
@@ -918,23 +919,6 @@
       }
     }
 
-    // Pointer Events for modern browsers & mobile
-    canvas.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      handleDragStart(e.clientX, e.clientY);
-    });
-
-    window.addEventListener('pointermove', (e) => {
-      if (isTouching) {
-        e.preventDefault();
-        handleDragMove(e.clientX, e.clientY);
-      }
-    });
-
-    window.addEventListener('pointerup', handleDragEnd);
-    window.addEventListener('pointercancel', handleDragEnd);
-
-    // Fallback Mouse Events explicitly for Chrome PC rendering bugs
     canvas.addEventListener('mousedown', (e) => {
       e.preventDefault();
       handleDragStart(e.clientX, e.clientY);
@@ -947,6 +931,23 @@
     });
 
     window.addEventListener('mouseup', handleDragEnd);
+
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length > 0) {
+        handleDragStart(e.touches[0].clientX, e.touches[0].clientY);
+        if (isTouching && e.cancelable) e.preventDefault();
+      }
+    }, { passive: false });
+
+    window.addEventListener('touchmove', (e) => {
+      if (isTouching && e.touches.length > 0) {
+        if (e.cancelable) e.preventDefault();
+        handleDragMove(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: false });
+
+    window.addEventListener('touchend', handleDragEnd);
+    window.addEventListener('touchcancel', handleDragEnd);
 
     function resetGame() {
       health = 100;

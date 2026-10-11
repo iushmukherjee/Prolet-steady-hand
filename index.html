@@ -470,8 +470,8 @@
     
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
-      <h2>Trace the Circuit</h2>
-      <p id="overlay-instructions">Click and hold on <strong>GABA</strong> on PC (or touch on Mobile), then drag to <strong>GABA Receptor</strong> without touching the circuit walls.</p>
+      <h2>Trace the Complex Circuit</h2>
+      <p id="overlay-instructions">Click and hold on <strong>GABA</strong> on PC (or touch on Mobile), then carefully navigate the intricate multi-turn path to <strong>GABA Receptor</strong>.</p>
       
       <div id="input-container" class="input-group hidden">
         <input type="text" id="player-name" placeholder="Enter Your Name" maxlength="15" />
@@ -613,17 +613,20 @@
     let rawPos = { x: 0, y: 0 };
     const cursorRadius = 10;
     
+    // More complicated maze path with additional directional turns and narrow constraints
     const waypoints = [
-      { x: 0.18, y: 0.18 },
-      { x: 0.82, y: 0.18 },
-      { x: 0.82, y: 0.50 },
-      { x: 0.18, y: 0.50 },
-      { x: 0.18, y: 0.82 },
-      { x: 0.82, y: 0.82 }
+      { x: 0.12, y: 0.20 },
+      { x: 0.38, y: 0.20 },
+      { x: 0.38, y: 0.65 },
+      { x: 0.62, y: 0.65 },
+      { x: 0.62, y: 0.25 },
+      { x: 0.88, y: 0.25 },
+      { x: 0.88, y: 0.82 },
+      { x: 0.25, y: 0.82 }
     ];
     
-    let pathWidth = 52;
-    let nodeRadius = 58;
+    let pathWidth = 42;  // Slightly narrowed for increased complexity
+    let nodeRadius = 50;
 
     function resizeCanvas() {
       const container = document.getElementById('game-container');
@@ -635,13 +638,14 @@
       canvas.width = w;
       canvas.height = h;
 
-      pathWidth = Math.max(42, Math.min(60, Math.min(canvas.width, canvas.height) * 0.13));
-      nodeRadius = Math.max(46, Math.min(64, Math.min(canvas.width, canvas.height) * 0.14));
+      pathWidth = Math.max(36, Math.min(48, Math.min(canvas.width, canvas.height) * 0.10));
+      nodeRadius = Math.max(40, Math.min(54, Math.min(canvas.width, canvas.height) * 0.12));
     }
 
     window.addEventListener('resize', () => {
       resizeCanvas();
-      drawCircuit();
+      drawCircuitBase();
+      drawNodeLabels();
     });
 
     playerNameInput.addEventListener('input', () => {
@@ -652,11 +656,11 @@
 
     function updateOverlayUI() {
       if (mode === 'pre') {
-        overlayInstructions.innerHTML = 'Click and hold on <strong style="color:var(--prolet-red)">GABA</strong> (or touch on Mobile), then drag to <strong style="color:var(--accent-green)">GABA Receptor</strong> without touching circuit walls.';
+        overlayInstructions.innerHTML = 'Click and hold on <strong style="color:var(--prolet-red)">GABA</strong> (or touch on Mobile), then navigate the complex path to <strong style="color:var(--accent-green)">GABA Receptor</strong>.';
         inputContainer.classList.add('hidden');
         startBtn.disabled = false;
       } else {
-        overlayInstructions.innerHTML = 'Click and hold on <strong style="color:var(--prolet-blue)">PROLET</strong> (or touch on Mobile), then drag to <strong style="color:var(--accent-green)">GABA Receptor</strong> without touching circuit walls.';
+        overlayInstructions.innerHTML = 'Click and hold on <strong style="color:var(--prolet-blue)">PROLET</strong> (or touch on Mobile), then navigate the complex path to <strong style="color:var(--accent-green)">GABA Receptor</strong>.';
         inputContainer.classList.remove('hidden');
         startBtn.disabled = playerNameInput.value.trim().length === 0;
       }
@@ -710,7 +714,7 @@
     function applyTremor(pos) {
       if (mode === 'post') return { ...pos };
       const time = performance.now() * 0.025;
-      const amplitude = 16.0;
+      const amplitude = 18.0; // Slightly increased tremor severity for the complex path
       return {
         x: pos.x + (Math.sin(time * 1.3) + Math.cos(time * 2.1)) * amplitude,
         y: pos.y + (Math.cos(time * 1.7) + Math.sin(time * 2.4)) * amplitude
@@ -777,12 +781,12 @@
     function drawNodeLabels() {
       const scaledWp = getScaledWaypoints();
       const startLabel = mode === 'pre' ? 'GABA' : 'PROLET';
-      const fontSize = Math.max(13, Math.floor(canvas.width * 0.032));
+      const fontSize = Math.max(12, Math.floor(canvas.width * 0.028));
       
       drawOutlinedText(startLabel, scaledWp[0].x, scaledWp[0].y, `bold ${fontSize}px sans-serif`, '#ffffff');
 
       const endWp = scaledWp[scaledWp.length - 1];
-      drawOutlinedText('GABA Receptor', endWp.x, endWp.y, `bold ${Math.max(11, fontSize - 2)}px sans-serif`, '#ffffff');
+      drawOutlinedText('GABA Receptor', endWp.x, endWp.y, `bold ${Math.max(10, fontSize - 2)}px sans-serif`, '#ffffff');
     }
 
     function distToSegment(p, v, w) {
@@ -900,7 +904,7 @@
       const pos = getCanvasCoords(e.clientX, e.clientY);
       const startWp = getScaledWaypoints()[0];
 
-      if (Math.hypot(pos.x - startWp.x, pos.y - startWp.y) <= nodeRadius * 2.5) {
+      if (Math.hypot(pos.x - startWp.x, pos.y - startWp.y) <= nodeRadius * 2.2) {
         isTouching = true;
         canvas.setPointerCapture(e.pointerId);
         currentPos = { x: startWp.x, y: startWp.y };

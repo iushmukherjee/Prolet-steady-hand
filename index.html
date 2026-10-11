@@ -201,7 +201,7 @@
     .overlay {
       position: absolute;
       inset: 0;
-      background: rgba(11, 12, 14, 0.88);
+      background: rgba(11, 12, 14, 0.92);
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -209,14 +209,12 @@
       padding: 24px;
       text-align: center;
       backdrop-filter: blur(4px);
-      z-index: 10;
-      pointer-events: auto;
+      z-index: 100;
     }
 
     .overlay.hidden {
       display: none !important;
       pointer-events: none !important;
-      visibility: hidden !important;
     }
 
     .overlay h2 {
@@ -289,7 +287,7 @@
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      z-index: 20;
+      z-index: 200;
     }
 
     #video-overlay.hidden {
@@ -314,7 +312,7 @@
       border-radius: 16px;
       font-size: 0.85rem;
       cursor: pointer;
-      z-index: 25;
+      z-index: 210;
     }
 
     .leaderboard-card {
@@ -418,11 +416,6 @@
       color: var(--accent-green);
       font-size: 1.05rem;
     }
-
-    .hidden {
-      display: none !important;
-      pointer-events: none !important;
-    }
   </style>
 </head>
 <body>
@@ -471,7 +464,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
       <h2>Trace the Complex Circuit</h2>
-      <p id="overlay-instructions">Click and hold on <strong>GABA</strong> (or touch on Mobile), then navigate the complex path to <strong>GABA Receptor</strong>.</p>
+      <p id="overlay-instructions">Click and hold on <strong>GABA</strong>, then navigate the complex path to <strong>GABA Receptor</strong>.</p>
       
       <div id="input-container" class="input-group hidden">
         <input type="text" id="player-name" placeholder="Enter Your Name" maxlength="15" />
@@ -655,11 +648,11 @@
 
     function updateOverlayUI() {
       if (mode === 'pre') {
-        overlayInstructions.innerHTML = 'Click and hold on <strong style="color:var(--prolet-red)">GABA</strong> (or touch on Mobile), then navigate the complex path to <strong style="color:var(--accent-green)">GABA Receptor</strong>.';
+        overlayInstructions.innerHTML = 'Click and hold on <strong style="color:var(--prolet-red)">GABA</strong>, then navigate the complex path to <strong style="color:var(--accent-green)">GABA Receptor</strong>.';
         inputContainer.classList.add('hidden');
         startBtn.disabled = false;
       } else {
-        overlayInstructions.innerHTML = 'Click and hold on <strong style="color:var(--prolet-blue)">PROLET</strong> (or touch on Mobile), then navigate the complex path to <strong style="color:var(--accent-green)">GABA Receptor</strong>.';
+        overlayInstructions.innerHTML = 'Click and hold on <strong style="color:var(--prolet-blue)">PROLET</strong>, then navigate the complex path to <strong style="color:var(--accent-green)">GABA Receptor</strong>.';
         inputContainer.classList.remove('hidden');
         startBtn.disabled = playerNameInput.value.trim().length === 0;
       }
@@ -896,18 +889,14 @@
       };
     }
 
-    // Precise Start Node Grab Handlers
-    canvas.addEventListener('pointerdown', (e) => {
+    // Chrome-Compatible Dual Input Handlers (Pointer + Mouse Events)
+    function handleDragStart(clientX, clientY) {
       if (!isPlaying) return;
-      e.preventDefault();
-
-      const pos = getCanvasCoords(e.clientX, e.clientY);
+      const pos = getCanvasCoords(clientX, clientY);
       const startWp = getScaledWaypoints()[0];
 
-      // Must click/touch within the start node circle (+2.5x tolerance)
       if (Math.hypot(pos.x - startWp.x, pos.y - startWp.y) <= nodeRadius * 2.5) {
         isTouching = true;
-        canvas.setPointerCapture(e.pointerId);
         currentPos = { x: startWp.x, y: startWp.y };
         rawPos = pos;
 
@@ -916,25 +905,48 @@
           isTimerRunning = true;
         }
       }
-    });
+    }
 
-    canvas.addEventListener('pointermove', (e) => {
+    function handleDragMove(clientX, clientY) {
       if (!isPlaying || !isTouching) return;
-      e.preventDefault();
-      rawPos = getCanvasCoords(e.clientX, e.clientY);
-    });
+      rawPos = getCanvasCoords(clientX, clientY);
+    }
 
-    function handlePointerUp(e) {
+    function handleDragEnd() {
       if (isTouching) {
         isTouching = false;
-        try {
-          canvas.releasePointerCapture(e.pointerId);
-        } catch (err) {}
       }
     }
 
-    canvas.addEventListener('pointerup', handlePointerUp);
-    canvas.addEventListener('pointercancel', handlePointerUp);
+    // Pointer Events for modern browsers & mobile
+    canvas.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      handleDragStart(e.clientX, e.clientY);
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (isTouching) {
+        e.preventDefault();
+        handleDragMove(e.clientX, e.clientY);
+      }
+    });
+
+    window.addEventListener('pointerup', handleDragEnd);
+    window.addEventListener('pointercancel', handleDragEnd);
+
+    // Fallback Mouse Events explicitly for Chrome PC rendering bugs
+    canvas.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      handleDragStart(e.clientX, e.clientY);
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (isTouching) {
+        handleDragMove(e.clientX, e.clientY);
+      }
+    });
+
+    window.addEventListener('mouseup', handleDragEnd);
 
     function resetGame() {
       health = 100;

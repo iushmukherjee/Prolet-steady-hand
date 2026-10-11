@@ -471,7 +471,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
       <h2>Trace the Complex Circuit</h2>
-      <p id="overlay-instructions">Click and hold on <strong>GABA</strong> on PC (or touch on Mobile), then carefully navigate the intricate multi-turn path to <strong>GABA Receptor</strong>.</p>
+      <p id="overlay-instructions">Click and hold anywhere on the circuit, then navigate to <strong>GABA Receptor</strong> without touching the circuit walls.</p>
       
       <div id="input-container" class="input-group hidden">
         <input type="text" id="player-name" placeholder="Enter Your Name" maxlength="15" />
@@ -613,7 +613,6 @@
     let rawPos = { x: 0, y: 0 };
     const cursorRadius = 10;
     
-    // More complicated maze path with additional directional turns and narrow constraints
     const waypoints = [
       { x: 0.12, y: 0.20 },
       { x: 0.38, y: 0.20 },
@@ -625,7 +624,7 @@
       { x: 0.25, y: 0.82 }
     ];
     
-    let pathWidth = 42;  // Slightly narrowed for increased complexity
+    let pathWidth = 42;
     let nodeRadius = 50;
 
     function resizeCanvas() {
@@ -714,7 +713,7 @@
     function applyTremor(pos) {
       if (mode === 'post') return { ...pos };
       const time = performance.now() * 0.025;
-      const amplitude = 18.0; // Slightly increased tremor severity for the complex path
+      const amplitude = 18.0;
       return {
         x: pos.x + (Math.sin(time * 1.3) + Math.cos(time * 2.1)) * amplitude,
         y: pos.y + (Math.cos(time * 1.7) + Math.sin(time * 2.4)) * amplitude
@@ -897,43 +896,41 @@
       };
     }
 
-    canvas.addEventListener('pointerdown', (e) => {
+    // Direct Drag Pick-Up Event Handlers
+    function startDrag(e) {
       if (!isPlaying) return;
       e.preventDefault();
-      
+
       const pos = getCanvasCoords(e.clientX, e.clientY);
-      const startWp = getScaledWaypoints()[0];
+      isTouching = true;
+      rawPos = pos;
+      currentPos = { ...pos };
 
-      if (Math.hypot(pos.x - startWp.x, pos.y - startWp.y) <= nodeRadius * 2.2) {
-        isTouching = true;
-        canvas.setPointerCapture(e.pointerId);
-        currentPos = { x: startWp.x, y: startWp.y };
-        rawPos = pos;
-
-        if (!isTimerRunning) {
-          startTime = performance.now();
-          isTimerRunning = true;
-        }
-      }
-    });
-
-    canvas.addEventListener('pointermove', (e) => {
-      if (!isPlaying || !isTouching) return;
-      e.preventDefault();
-      rawPos = getCanvasCoords(e.clientX, e.clientY);
-    });
-
-    function handlePointerUp(e) {
-      if (isTouching) {
-        isTouching = false;
-        try {
-          canvas.releasePointerCapture(e.pointerId);
-        } catch (err) {}
+      if (!isTimerRunning) {
+        startTime = performance.now();
+        isTimerRunning = true;
       }
     }
 
-    canvas.addEventListener('pointerup', handlePointerUp);
-    canvas.addEventListener('pointercancel', handlePointerUp);
+    function moveDrag(e) {
+      if (!isPlaying || !isTouching) return;
+      e.preventDefault();
+      rawPos = getCanvasCoords(e.clientX, e.clientY);
+    }
+
+    function stopDrag(e) {
+      if (isTouching) {
+        isTouching = false;
+      }
+    }
+
+    // Canvas Pointer Down Initiation
+    canvas.addEventListener('pointerdown', startDrag);
+    
+    // Window-level Tracking so cursor never gets stuck or lost
+    window.addEventListener('pointermove', moveDrag);
+    window.addEventListener('pointerup', stopDrag);
+    window.addEventListener('pointercancel', stopDrag);
 
     function resetGame() {
       health = 100;

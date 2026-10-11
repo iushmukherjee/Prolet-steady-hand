@@ -448,7 +448,7 @@
       <h2>Trace the Complex Circuit</h2>
       <p id="overlay-instructions">Click and hold on <strong>GABA</strong>, then navigate the complex path to <strong>GABA Receptor</strong>.</p>
       
-      <div id="input-container" class="input-group hidden">
+      <div id="input-container" class="input-group">
         <input type="text" id="player-name" placeholder="Enter Your Name" maxlength="15" />
       </div>
 
@@ -625,11 +625,12 @@
     function updateOverlayUI() {
       if (mode === 'pre') {
         overlayInstructions.innerHTML = 'Click and hold on <strong style="color:var(--prolet-red)">GABA</strong>, then navigate the complex path to <strong style="color:var(--accent-green)">GABA Receptor</strong>.';
-        inputContainer.classList.add('hidden');
+        inputContainer.style.display = 'none'; // Completely hidden in Pre-Treatment
+        playerNameInput.value = '';
         startBtn.disabled = false;
       } else {
         overlayInstructions.innerHTML = 'Click and hold on <strong style="color:var(--prolet-blue)">PROLET</strong>, then navigate the complex path to <strong style="color:var(--accent-green)">GABA Receptor</strong>.';
-        inputContainer.classList.remove('hidden');
+        inputContainer.style.display = 'flex'; // Visible in Post-ProLet
         startBtn.disabled = playerNameInput.value.trim().length === 0;
       }
     }

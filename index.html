@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>ProLet Neural Circuit Precision Challenge - IANCON Demo</title>
   
   <style>
@@ -50,7 +53,7 @@
       width: 100%;
     }
 
-    /* Logo with White Background Box */
+    /* Logo Container with White Background */
     .brand-logo-wrapper {
       background: #ffffff;
       padding: 8px 20px;
@@ -194,6 +197,7 @@
       display: block;
       touch-action: none;
       user-select: none;
+      -webkit-user-select: none;
       background-color: #18191b;
       z-index: 1;
       cursor: crosshair;
@@ -455,7 +459,7 @@
   </div>
 
   <div id="game-container">
-    <canvas id="mazeCanvas"></canvas>
+    <canvas id="mazeCanvas" onselectstart="return false;" ondragstart="return false;"></canvas>
     
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
@@ -590,6 +594,7 @@
     let mode = 'pre';
     let isPlaying = false;
     let isTouching = false;
+    let activePointerId = null;
     let health = 100;
     let errors = 0;
     let globalScores = [];
@@ -639,12 +644,12 @@
     function updateOverlayUI() {
       if (mode === 'pre') {
         overlayInstructions.innerHTML = 'Click and hold on <strong style="color:var(--prolet-red)">GABA</strong>, then navigate the complex path to <strong style="color:var(--accent-green)">GABA Receptor</strong>.';
-        inputContainer.style.display = 'none'; // Name input hidden in Pre-Treatment
+        inputContainer.style.display = 'none';
         playerNameInput.value = '';
         startBtn.disabled = false;
       } else {
         overlayInstructions.innerHTML = 'Click and hold on <strong style="color:var(--prolet-blue)">PROLET</strong>, then navigate the complex path to <strong style="color:var(--accent-green)">GABA Receptor</strong>.';
-        inputContainer.style.display = 'flex'; // Name input visible in Post-ProLet
+        inputContainer.style.display = 'flex';
         startBtn.disabled = playerNameInput.value.trim().length === 0;
       }
     }
@@ -886,13 +891,21 @@
       };
     }
 
-    function handleDragStart(clientX, clientY) {
+    // Modern Chrome-Safe Pointer Control Handler
+    canvas.addEventListener('pointerdown', (e) => {
       if (!isPlaying) return;
-      const pos = getCanvasCoords(clientX, clientY);
+      
+      const pos = getCanvasCoords(e.clientX, e.clientY);
       const startWp = getScaledWaypoints()[0];
 
       if (Math.hypot(pos.x - startWp.x, pos.y - startWp.y) <= nodeRadius * 2.5) {
         isTouching = true;
+        activePointerId = e.pointerId;
+        
+        try {
+          canvas.setPointerCapture(e.pointerId);
+        } catch (err) {}
+
         currentPos = { x: startWp.x, y: startWp.y };
         rawPos = pos;
 
@@ -901,54 +914,34 @@
           isTimerRunning = true;
         }
       }
-    }
+    });
 
-    function handleDragMove(clientX, clientY) {
+    window.addEventListener('pointermove', (e) => {
       if (!isPlaying || !isTouching) return;
-      rawPos = getCanvasCoords(clientX, clientY);
-    }
+      rawPos = getCanvasCoords(e.clientX, e.clientY);
+    });
 
-    function handleDragEnd() {
+    function releasePointer(e) {
       if (isTouching) {
         isTouching = false;
+        if (activePointerId !== null) {
+          try {
+            canvas.releasePointerCapture(activePointerId);
+          } catch (err) {}
+          activePointerId = null;
+        }
       }
     }
 
-    canvas.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      handleDragStart(e.clientX, e.clientY);
-    });
-
-    window.addEventListener('mousemove', (e) => {
-      if (isTouching) {
-        handleDragMove(e.clientX, e.clientY);
-      }
-    });
-
-    window.addEventListener('mouseup', handleDragEnd);
-
-    canvas.addEventListener('touchstart', (e) => {
-      if (e.touches.length > 0) {
-        handleDragStart(e.touches[0].clientX, e.touches[0].clientY);
-        if (isTouching && e.cancelable) e.preventDefault();
-      }
-    }, { passive: false });
-
-    window.addEventListener('touchmove', (e) => {
-      if (isTouching && e.touches.length > 0) {
-        if (e.cancelable) e.preventDefault();
-        handleDragMove(e.touches[0].clientX, e.touches[0].clientY);
-      }
-    }, { passive: false });
-
-    window.addEventListener('touchend', handleDragEnd);
-    window.addEventListener('touchcancel', handleDragEnd);
+    window.addEventListener('pointerup', releasePointer);
+    window.addEventListener('pointercancel', releasePointer);
 
     function resetGame() {
       health = 100;
       errors = 0;
       isPlaying = false;
       isTouching = false;
+      activePointerId = null;
       isTimerRunning = false;
       elapsedTime = 0;
       healthBar.style.width = '100%';

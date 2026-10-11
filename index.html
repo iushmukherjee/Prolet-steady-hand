@@ -50,6 +50,19 @@
       width: 100%;
     }
 
+    /* Logo with White Background Box */
+    .brand-logo-wrapper {
+      background: #ffffff;
+      padding: 8px 20px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      border: 2px solid var(--prolet-blue);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), 0 0 10px rgba(43, 98, 168, 0.3);
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+    }
+
     .brand-logo {
       max-height: 52px;
       max-width: 240px;
@@ -57,7 +70,6 @@
       height: auto;
       object-fit: contain;
       display: block;
-      margin-bottom: 10px;
     }
 
     h1 {
@@ -410,7 +422,9 @@
 <body>
 
   <header>
-    <img src="logo.png" alt="ProLet Logo" class="brand-logo" />
+    <div class="brand-logo-wrapper">
+      <img src="logo.png" alt="ProLet Logo" class="brand-logo" />
+    </div>
     <h1>Neural Circuit Challenge</h1>
     <p class="subtitle">Essential Tremor Simulation & Assessment Demo</p>
   </header>
@@ -625,12 +639,12 @@
     function updateOverlayUI() {
       if (mode === 'pre') {
         overlayInstructions.innerHTML = 'Click and hold on <strong style="color:var(--prolet-red)">GABA</strong>, then navigate the complex path to <strong style="color:var(--accent-green)">GABA Receptor</strong>.';
-        inputContainer.style.display = 'none'; // Completely hidden in Pre-Treatment
+        inputContainer.style.display = 'none'; // Name input hidden in Pre-Treatment
         playerNameInput.value = '';
         startBtn.disabled = false;
       } else {
         overlayInstructions.innerHTML = 'Click and hold on <strong style="color:var(--prolet-blue)">PROLET</strong>, then navigate the complex path to <strong style="color:var(--accent-green)">GABA Receptor</strong>.';
-        inputContainer.style.display = 'flex'; // Visible in Post-ProLet
+        inputContainer.style.display = 'flex'; // Name input visible in Post-ProLet
         startBtn.disabled = playerNameInput.value.trim().length === 0;
       }
     }

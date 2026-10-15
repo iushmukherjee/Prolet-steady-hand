@@ -838,7 +838,7 @@
       currentPos.y = nextY;
 
       if (hitWall) {
-        health = Math.max(0, health - 0.4); // Adjusted hit metric
+        health = Math.max(0, health - 0.4); // Hit metric adjustment
         errors++;
         errorCountEl.textContent = Math.floor(errors / 3);
         healthBar.style.width = health + '%';
@@ -891,14 +891,18 @@
       };
     }
 
-    // Modern Chrome-Safe Pointer Control Handler
+    // Modern Chrome-Safe Pointer Control Handler allowing resume from current position
     canvas.addEventListener('pointerdown', (e) => {
       if (!isPlaying) return;
       
       const pos = getCanvasCoords(e.clientX, e.clientY);
       const startWp = getScaledWaypoints()[0];
 
-      if (Math.hypot(pos.x - startWp.x, pos.y - startWp.y) <= nodeRadius * 2.5) {
+      // Allow grabbing if clicking near the current cursor position or the starting node
+      const distFromCurrent = Math.hypot(pos.x - currentPos.x, pos.y - currentPos.y);
+      const distFromStart = Math.hypot(pos.x - startWp.x, pos.y - startWp.y);
+
+      if (distFromCurrent <= nodeRadius * 2.0 || distFromStart <= nodeRadius * 2.5) {
         isTouching = true;
         activePointerId = e.pointerId;
         
@@ -906,7 +910,10 @@
           canvas.setPointerCapture(e.pointerId);
         } catch (err) {}
 
-        currentPos = { x: startWp.x, y: startWp.y };
+        // If it's a fresh run or far away, snap to start; otherwise resume from current position
+        if (distFromStart <= nodeRadius * 2.5 && currentPos.x === 0 && currentPos.y === 0) {
+          currentPos = { x: startWp.x, y: startWp.y };
+        }
         rawPos = pos;
 
         if (!isTimerRunning) {
@@ -918,7 +925,6 @@
 
     window.addEventListener('pointermove', (e) => {
       if (!isPlaying || !isTouching) return;
-      // Track pointer move across the window even if slightly outside canvas bounds while dragging
       if (e.pointerId === activePointerId || activePointerId === null) {
         rawPos = getCanvasCoords(e.clientX, e.clientY);
       }

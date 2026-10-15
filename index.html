@@ -815,7 +815,7 @@
       }
 
       const target = applyTremor(rawPos);
-      const steps = 15;
+      const steps = 35; // Smooth movement interpolation
       let hitWall = false;
 
       let nextX = currentPos.x;
@@ -838,7 +838,7 @@
       currentPos.y = nextY;
 
       if (hitWall) {
-        health = Math.max(0, health - 1.2);
+        health = Math.max(0, health - 0.4); // Adjusted hit metric
         errors++;
         errorCountEl.textContent = Math.floor(errors / 3);
         healthBar.style.width = health + '%';
@@ -918,10 +918,15 @@
 
     window.addEventListener('pointermove', (e) => {
       if (!isPlaying || !isTouching) return;
-      rawPos = getCanvasCoords(e.clientX, e.clientY);
+      // Track pointer move across the window even if slightly outside canvas bounds while dragging
+      if (e.pointerId === activePointerId || activePointerId === null) {
+        rawPos = getCanvasCoords(e.clientX, e.clientY);
+      }
     });
 
     function releasePointer(e) {
+      if (activePointerId !== null && e.pointerId !== activePointerId) return;
+      
       if (isTouching) {
         isTouching = false;
         if (activePointerId !== null) {
